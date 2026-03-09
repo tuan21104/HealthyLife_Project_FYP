@@ -1,0 +1,14 @@
+# Bỏ qua file của Backend
+server/node_modules/
+server/.env
+
+# Bỏ qua file của Frontend (Flutter)
+client/build/
+client/.dart_tool/
+client/.idea/
+client/android/.gradle/
+client/ios/.symlinks/
+client/ios/Pods/
+
+# Bỏ qua file hệ thống máy tính
+.DS_Store
