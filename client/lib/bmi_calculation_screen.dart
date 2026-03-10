@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-// import 'target_weight_screen.dart'; //
+import 'target_weight_screen.dart';
 
 class BmiCalculationScreen extends StatefulWidget {
   final double heightCm;
@@ -81,7 +81,11 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
               // 1. TIÊU ĐỀ
               const Text(
                 "Your Calculation",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
 
               const SizedBox(height: 50),
@@ -94,13 +98,43 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
                 ),
                 child: Column(
                   children: [
-                    _buildTableRow("Your Height", "${widget.heightCm.toStringAsFixed(0)} cm"),
-                    const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-                    _buildTableRow("Your Weight", "${widget.weightKg.toStringAsFixed(0)} kg"),
-                    const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-                    _buildTableRow("Your BMI", "${bmi.toStringAsFixed(1)}($status)", isHighlight: true, highlightColor: highlightColor),
-                    const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-                    _buildTableRow(diffLabel, diffWeight > 0 ? "${diffWeight.toStringAsFixed(1)} kg" : "Perfect", isHighlight: true, highlightColor: highlightColor),
+                    _buildTableRow(
+                      "Your Height",
+                      "${widget.heightCm.toStringAsFixed(0)} cm",
+                    ),
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFE0E0E0),
+                    ),
+                    _buildTableRow(
+                      "Your Weight",
+                      "${widget.weightKg.toStringAsFixed(0)} kg",
+                    ),
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFE0E0E0),
+                    ),
+                    _buildTableRow(
+                      "Your BMI",
+                      "${bmi.toStringAsFixed(1)}($status)",
+                      isHighlight: true,
+                      highlightColor: highlightColor,
+                    ),
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFE0E0E0),
+                    ),
+                    _buildTableRow(
+                      diffLabel,
+                      diffWeight > 0
+                          ? "${diffWeight.toStringAsFixed(1)} kg"
+                          : "Perfect",
+                      isHighlight: true,
+                      highlightColor: highlightColor,
+                    ),
                   ],
                 ),
               ),
@@ -120,24 +154,39 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: () {
-                    print("Chuyển sang Target Weight");
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TargetWeightScreen(
+                          // ĐÃ SỬA: Truyền số liệu từ màn hình này sang màn hình Target
+                          currentHeight: widget.heightCm,
+                          currentWeight: widget.weightKg,
+                        ),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
-                  child: const Text("Your Target", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: const Text(
+                    "Your Target",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 30),
 
               Center(
-                child: Image.asset(
-                  'assets/images/logo_green.png',
-                  height: 60,
-                ),
+                child: Image.asset('assets/images/logo_green.png', height: 60),
               ),
               const SizedBox(height: 20),
             ],
@@ -147,7 +196,12 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
     );
   }
 
-  Widget _buildTableRow(String label, String value, {bool isHighlight = false, Color? highlightColor}) {
+  Widget _buildTableRow(
+    String label,
+    String value, {
+    bool isHighlight = false,
+    Color? highlightColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: Row(

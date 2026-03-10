@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'signup_screen.dart';
 import 'welcome_screen.dart';
+import 'main_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,18 +36,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = false);
 
-    if (result['success']) {
+    if (result['success'] == true) {
       _showMessage("Đăng nhập thành công!", Colors.green);
+
+      // Bắt cờ hasProfile từ Backend gửi về
+      bool hasProfile = result['hasProfile'] ?? false;
 
       Future.delayed(const Duration(milliseconds: 500), () {
         if (!mounted) return;
 
-        Navigator.pushReplacement(
+        if (hasProfile) {
+          // --- NHÁNH 1: TÀI KHOẢN CŨ (Đã có thông tin chiều cao/cân nặng) ---
+          print("Tài khoản cũ -> Bypass Onboarding, vào thẳng Trang chủ");
+          _showMessage("Chào mừng trở lại! (Sẽ chuyển thẳng vào Trang chủ)", Colors.blue);
+          
+          Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-                builder: (context) => WelcomeScreen(email: email)
-            )
-        );
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+          );
+          
+        } else {
+          // --- NHÁNH 2: TÀI KHOẢN MỚI (Chưa có thông tin) ---
+          print("Tài khoản mới -> Vào luồng Onboarding điền thông tin");
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => WelcomeScreen(email: email)
+              )
+          );
+        }
       });
 
     } else {

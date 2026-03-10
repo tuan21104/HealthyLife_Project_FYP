@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'user_info_step2_screen.dart';
+import 'landing_screen.dart';
 
 class UserInfoStep1Screen extends StatefulWidget {
   final String email;
@@ -59,9 +60,19 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.grey),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // Dùng pushReplacement để chuyển sang LandingScreen 
+            // và không cho phép bấm "Back" trên đt quay lại màn hình nhập Info này nữa
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LandingScreen(),
+              ),
+            );
+          },
         ),
       ),
+      
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'bmi_calculation_screen.dart';
@@ -14,7 +16,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
 
-  // Trạng thái đơn vị đo (Mặc định là Hệ mét: cm và kg)
+  // Trạng thái đơn vị đo
   bool _isCm = true;
   bool _isKg = true;
 
@@ -22,9 +24,34 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
   String? _selectedGender = "Male";
   DateTime? _selectedDate;
 
-  int? _selectedAvatarIndex;
+  // --- BIẾN QUẢN LÝ AVATAR ---
+  int? _selectedAvatarIndex; // Dành cho ảnh có sẵn (asset)
+  File? _profileImageFile;   // Dành cho ảnh thật chụp/chọn từ máy
+  final ImagePicker _picker = ImagePicker();
+  int _selectedPicOption = 0; // Lưu lựa chọn Radio Button
 
   final List<String> _activities = ["Sedentary", "Lightly Active", "Moderately Active", "Very Active"];
+
+  // --- HÀM MỞ CAMERA/GALLERY ---
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 500, // Tối ưu dung lượng
+        maxHeight: 500,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _profileImageFile = File(pickedFile.path);
+          _selectedAvatarIndex = null; // Xóa ưu tiên của ảnh có sẵn
+        });
+      }
+    } catch (e) {
+      print("Lỗi chọn ảnh: $e");
+    }
+  }
 
   void _handleCalculate() async {
     if (_heightController.text.isEmpty || _weightController.text.isEmpty || _selectedDate == null || _selectedActivity == null) {
@@ -45,23 +72,24 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
       'gender': _selectedGender,
       'birthDate': "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}",
       'avatarIndex': _selectedAvatarIndex,
+      // Ghi chú: _profileImageFile (ảnh thật) sau này sẽ cần upload qua một hàm riêng (như Cloudinary) để lưu url vào DB.
     });
 
     if (success) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hoàn tất hồ sơ!"), backgroundColor: Colors.green));
 
-        Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BmiCalculationScreen(
-                    heightCm: height,
-                    weightKg: weight,
-                  ),
-                ),
-              );
-            }
-          }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BmiCalculationScreen(
+            heightCm: height,
+            weightKg: weight,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +114,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               const Text("Step 2/2", style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 30),
 
+              // --- UI HIỂN THỊ AVATAR ĐÃ NÂNG CẤP ---
               Center(
                 child: Column(
                   children: [
@@ -94,10 +123,14 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                       child: CircleAvatar(
                         radius: 40,
                         backgroundColor: Colors.grey[100],
-                        backgroundImage: _selectedAvatarIndex != null
-                            ? AssetImage('assets/images/avatar_${_selectedAvatarIndex! + 1}.png')
-                            : null,
-                        child: _selectedAvatarIndex == null
+                        // Ưu tiên hiển thị ảnh thật, nếu không có thì kiểm tra ảnh asset
+                        backgroundImage: _profileImageFile != null
+                            ? FileImage(_profileImageFile!) as ImageProvider
+                            : (_selectedAvatarIndex != null
+                                ? AssetImage('assets/images/avatar_${_selectedAvatarIndex! + 1}.png')
+                                : null),
+                        // Nếu cả 2 đều trống thì hiện icon mặc định
+                        child: _profileImageFile == null && _selectedAvatarIndex == null
                             ? Icon(Icons.person_outline, size: 40, color: Colors.grey[400])
                             : null,
                       ),
@@ -135,14 +168,12 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               ),
               const SizedBox(height: 20),
 
-              // 6. GENDER
               GestureDetector(
                 onTap: _showGenderDialog,
                 child: _buildDropdownField("Gender", _selectedGender ?? ""),
               ),
               const SizedBox(height: 20),
 
-              // 7. BIRTH DATE
               GestureDetector(
                 onTap: () => _selectDate(context),
                 child: _buildDropdownField(
@@ -238,7 +269,11 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     );
   }
 
+  // --- LOGIC POPUP CHỌN ẢNH ĐÃ SỬA ---
   void _showProfilePictureDialog() {
+    // Reset lại lựa chọn radio về mặc định mỗi lần mở
+    _selectedPicOption = 0; 
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -266,10 +301,20 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                 onPressed: () {
-                  Navigator.pop(context);
-                  // Hiện bảng chọn 6 avatars (Giả lập tính năng Choose from avatars)
+                  Navigator.pop(context); // Đóng popup
+
+                  // Điều hướng chức năng theo tuỳ chọn
                   if (_selectedPicOption == 0) {
                     _showAvatarGridDialog();
+                  } else if (_selectedPicOption == 1) {
+                    _pickImage(ImageSource.gallery);
+                  } else if (_selectedPicOption == 2) {
+                    _pickImage(ImageSource.camera);
+                  } else if (_selectedPicOption == 3) {
+                    setState(() {
+                      _profileImageFile = null;
+                      _selectedAvatarIndex = null;
+                    });
                   }
                 },
                 child: const Text("OK", style: TextStyle(color: Colors.white)),
@@ -281,7 +326,6 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     );
   }
 
-  int _selectedPicOption = 0;
   Widget _buildRadioOption(String title, int value) {
     return StatefulBuilder(builder: (context, setStateSB) {
       return RadioListTile<int>(
@@ -290,7 +334,9 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
         groupValue: _selectedPicOption,
         activeColor: const Color(0xFF4CAF50),
         contentPadding: EdgeInsets.zero,
-        onChanged: (val) => setStateSB(() => _selectedPicOption = val!),
+        onChanged: (val) {
+          setStateSB(() => _selectedPicOption = val!);
+        },
       );
     });
   }
@@ -312,15 +358,17 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
             spacing: 16,
             runSpacing: 16,
             alignment: WrapAlignment.center,
-            // SỬ DỤNG 6 ẢNH AVATAR BẠN VỪA TẢI VỀ
             children: List.generate(6, (index) => GestureDetector(
               onTap: () {
-                setState(() => _selectedAvatarIndex = index);
+                setState(() {
+                  _selectedAvatarIndex = index;
+                  _profileImageFile = null; // Bỏ ảnh thật đi nếu quay lại chọn Avatar
+                });
                 Navigator.pop(context);
               },
               child: CircleAvatar(
                 radius: 35,
-                backgroundColor: Colors.transparent, // Bỏ nền xám
+                backgroundColor: Colors.transparent,
                 backgroundImage: AssetImage('assets/images/avatar_${index + 1}.png'),
               ),
             )),

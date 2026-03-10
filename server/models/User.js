@@ -50,6 +50,10 @@ const UserSchema = new mongoose.Schema({
         type: Number, 
         default: 0
     },
+    avatarIndex: { 
+        type: Number, 
+        default: null 
+    },
     
     // 4. Kết quả tính toán (Server tự tính và lưu vào đây)
     bmi: { type: Number, default: 0 },
