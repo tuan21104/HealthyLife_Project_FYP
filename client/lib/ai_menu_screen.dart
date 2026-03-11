@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'services/auth_service.dart';
 import 'services/ai_service.dart';
 
@@ -27,39 +28,53 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
   }
 
   Future<void> _fetchAndGenerateMenu() async {
-    // 1. Kéo thông tin user từ Database (để lấy Giới tính, Cân nặng, Vận động và Budget)
-    final result = await AuthService.getUserProfile();
-    
-    if (result['success'] == true && result['user'] != null) {
-      final user = result['user'];
-      
-      // Lấy thông số (Nếu thiếu thì để mặc định)
-      double currentWeight = (user['weight'] ?? 60).toDouble();
-      String gender = user['gender'] ?? 'Male';
-      String activityLevel = user['activityLevel'] ?? 'Sedentary';
-      int dailyBudget = user['dailyBudget'] ?? 100000; // Mặc định 100k nếu chưa nhập
+    try {
+      // 1. Kéo thông tin user từ Database
+      final result = await AuthService.getUserProfile();
 
-      // 2. Gửi thông tin cho Gemini qua AIService
-      final menu = await AIService.getDietaryAdvice(
-        currentWeight: currentWeight,
-        targetWeight: widget.targetWeight,
-        targetCalo: widget.targetCalo,
-        gender: gender,
-        activityLevel: activityLevel,
-        dailyBudget: dailyBudget,
-      );
+      if (result['success'] == true && result['user'] != null) {
+        final user = result['user'];
 
-      // 3. Cập nhật giao diện khi có kết quả
-      if (mounted) {
-        setState(() {
-          _aiResponse = menu;
-          _isLoading = false;
-        });
+        // PARSE DỮ LIỆU AN TOÀN TUYỆT ĐỐI (Chống crash ngầm nếu DB trả về String)
+        double currentWeight =
+            double.tryParse(user['weight'].toString()) ?? 60.0;
+        String gender = user['gender']?.toString() ?? 'Male';
+        String activityLevel = user['activityLevel']?.toString() ?? 'Sedentary';
+        int dailyBudget =
+            int.tryParse(user['dailyBudget'].toString()) ??
+            100000; // Mặc định 100k
+
+        // 2. Gửi thông tin cho Gemini qua AIService
+        final menu = await AIService.getDietaryAdvice(
+          currentWeight: currentWeight,
+          targetWeight: widget.targetWeight,
+          targetCalo: widget.targetCalo,
+          gender: gender,
+          activityLevel: activityLevel,
+          dailyBudget: dailyBudget,
+        );
+
+        // 3. Cập nhật giao diện khi có kết quả từ AI
+        if (mounted) {
+          setState(() {
+            _aiResponse = menu;
+            _isLoading = false;
+          });
+        }
+      } else {
+        // NẾU BACKEND TỪ CHỐI TRẢ DỮ LIỆU
+        if (mounted) {
+          setState(() {
+            _aiResponse = "Lỗi Backend: ${result['message'] ?? 'Không rõ lỗi'}";
+            _isLoading = false;
+          });
+        }
       }
-    } else {
+    } catch (e) {
+      // NẾU CÓ LỖI XẢY RA TRONG LÚC CHẠY (Bắt sống Bug)
       if (mounted) {
         setState(() {
-          _aiResponse = "Không thể tải thông tin hồ sơ của bạn. Vui lòng thử lại.";
+          _aiResponse = "Lỗi hệ thống App: $e";
           _isLoading = false;
         });
       }
@@ -69,7 +84,9 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA), // Nền xám nhạt cho nổi bật thẻ nội dung
+      backgroundColor: const Color(
+        0xFFF7F8FA,
+      ), // Nền xám nhạt cho nổi bật thẻ nội dung
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -78,15 +95,13 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Your AI Nutritionist", 
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)
+          "Your AI Nutritionist",
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
       body: SafeArea(
-        child: _isLoading 
-            ? _buildLoadingState() 
-            : _buildMenuContent(),
+        child: _isLoading ? _buildLoadingState() : _buildMenuContent(),
       ),
     );
   }
@@ -97,7 +112,11 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset('assets/images/logo_green.png', height: 80, color: const Color(0xFF4CAF50).withOpacity(0.5)),
+          Image.asset(
+            'assets/images/logo_green.png',
+            height: 80,
+            color: const Color(0xFF4CAF50).withOpacity(0.5),
+          ),
           const SizedBox(height: 24),
           const CircularProgressIndicator(color: Color(0xFF4CAF50)),
           const SizedBox(height: 24),
@@ -136,16 +155,46 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
                 const Icon(Icons.restaurant_menu, color: Color(0xFF4CAF50)),
                 const SizedBox(width: 8),
                 Text(
-                  "Thực đơn ${widget.targetCalo} Kcal", 
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)
+                  "Thực đơn ${widget.targetCalo} Kcal",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
               ],
             ),
             const Divider(height: 30, thickness: 1),
             // Parse và hiển thị Text từ AI trả về
-            Text(
-              _aiResponse,
-              style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.6),
+            // ĐÃ NÂNG CẤP: Dùng MarkdownBody để render các thẻ in đậm, in nghiêng
+            MarkdownBody(
+              data: _aiResponse,
+              styleSheet: MarkdownStyleSheet(
+                p: const TextStyle(
+                  fontSize: 15,
+                  color: Colors.black87,
+                  height: 1.6,
+                ),
+                strong: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                listBullet: const TextStyle(
+                  fontSize: 15,
+                  color: Colors.black87,
+                  height: 1.6,
+                ),
+                h1: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4CAF50),
+                ),
+                h2: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4CAF50),
+                ),
+              ),
             ),
           ],
         ),

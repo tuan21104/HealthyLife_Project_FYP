@@ -17,15 +17,13 @@ class AIService {
         return "Lỗi bảo mật: Không tìm thấy API Key. Vui lòng kiểm tra lại file .env";
       }
 
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: apiKey,
-      );
+      final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
 
       String goal = currentWeight > targetWeight ? "Giảm cân" : "Tăng cân";
-      
+
       // PROMPT ĐÃ NÂNG CẤP: Ép AI phải tối ưu chi phí
-      final String prompt = '''
+      final String prompt =
+          '''
       Bạn là một chuyên gia dinh dưỡng thực tế và am hiểu giá cả thị trường Việt Nam.
       Dưới đây là thông tin của tôi:
       - Giới tính: $gender
@@ -52,10 +50,9 @@ class AIService {
       final response = await model.generateContent(content);
 
       return response.text ?? "AI hiện đang bận, vui lòng thử lại sau nhé.";
-      
     } catch (e) {
       print("Lỗi hệ thống AI: $e");
-      return "Đã có lỗi xảy ra khi kết nối với chuyên gia AI. Vui lòng kiểm tra mạng hoặc thử lại sau.";
+      return "CHI TIẾT LỖI TỪ GOOGLE:\n$e";
     }
   }
 }

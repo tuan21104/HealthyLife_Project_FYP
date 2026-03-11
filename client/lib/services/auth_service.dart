@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   // NHỚ ĐỔI LẠI IP NÀY THEO IP MÁY TÍNH CỦA BẠN NHÉ (nếu test máy thật)
-  static const String myWifiIp = '172.30.186.134'; 
+  static const String myWifiIp = '192.18.23.104'; 
   static const bool isOnlineMode = true;
 
   static const String baseUrl = isOnlineMode 

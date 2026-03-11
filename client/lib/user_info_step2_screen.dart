@@ -21,7 +21,6 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
   bool _isKg = true;
 
   String? _selectedActivity;
-  String? _selectedGender = "Male";
   DateTime? _selectedDate;
 
   // --- BIẾN QUẢN LÝ AVATAR ---
@@ -69,10 +68,9 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
       'height': height,
       'weight': weight,
       'activityLevel': _selectedActivity,
-      'gender': _selectedGender,
+      // ĐÃ XÓA GENDER Ở ĐÂY VÌ ĐÃ LƯU Ở STEP 1
       'birthDate': "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}",
       'avatarIndex': _selectedAvatarIndex,
-      // Ghi chú: _profileImageFile (ảnh thật) sau này sẽ cần upload qua một hàm riêng (như Cloudinary) để lưu url vào DB.
     });
 
     if (success) {
@@ -114,7 +112,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               const Text("Step 2/2", style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 30),
 
-              // --- UI HIỂN THỊ AVATAR ĐÃ NÂNG CẤP ---
+              // --- UI HIỂN THỊ AVATAR ---
               Center(
                 child: Column(
                   children: [
@@ -123,13 +121,11 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                       child: CircleAvatar(
                         radius: 40,
                         backgroundColor: Colors.grey[100],
-                        // Ưu tiên hiển thị ảnh thật, nếu không có thì kiểm tra ảnh asset
                         backgroundImage: _profileImageFile != null
                             ? FileImage(_profileImageFile!) as ImageProvider
                             : (_selectedAvatarIndex != null
                                 ? AssetImage('assets/images/avatar_${_selectedAvatarIndex! + 1}.png')
                                 : null),
-                        // Nếu cả 2 đều trống thì hiện icon mặc định
                         child: _profileImageFile == null && _selectedAvatarIndex == null
                             ? Icon(Icons.person_outline, size: 40, color: Colors.grey[400])
                             : null,
@@ -168,11 +164,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               ),
               const SizedBox(height: 20),
 
-              GestureDetector(
-                onTap: _showGenderDialog,
-                child: _buildDropdownField("Gender", _selectedGender ?? ""),
-              ),
-              const SizedBox(height: 20),
+              // ĐÃ XÓA KHỐI UI CHỌN GENDER Ở ĐÂY
 
               GestureDetector(
                 onTap: () => _selectDate(context),
@@ -269,9 +261,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     );
   }
 
-  // --- LOGIC POPUP CHỌN ẢNH ĐÃ SỬA ---
   void _showProfilePictureDialog() {
-    // Reset lại lựa chọn radio về mặc định mỗi lần mở
     _selectedPicOption = 0; 
     
     showDialog(
@@ -301,9 +291,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                 onPressed: () {
-                  Navigator.pop(context); // Đóng popup
+                  Navigator.pop(context);
 
-                  // Điều hướng chức năng theo tuỳ chọn
                   if (_selectedPicOption == 0) {
                     _showAvatarGridDialog();
                   } else if (_selectedPicOption == 1) {
@@ -362,7 +351,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               onTap: () {
                 setState(() {
                   _selectedAvatarIndex = index;
-                  _profileImageFile = null; // Bỏ ảnh thật đi nếu quay lại chọn Avatar
+                  _profileImageFile = null;
                 });
                 Navigator.pop(context);
               },
@@ -401,28 +390,6 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               title: Text(act),
               onTap: () {
                 setState(() => _selectedActivity = act);
-                Navigator.pop(context);
-              },
-            )).toList(),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showGenderDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Select Gender", style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: ["Male", "Female", "Other"].map((g) => ListTile(
-              title: Text(g),
-              onTap: () {
-                setState(() => _selectedGender = g);
                 Navigator.pop(context);
               },
             )).toList(),
