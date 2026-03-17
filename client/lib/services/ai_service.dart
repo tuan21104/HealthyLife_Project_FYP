@@ -1,58 +1,52 @@
+import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AIService {
-  // Hàm gọi AI để lấy tư vấn thực đơn
   static Future<String> getDietaryAdvice({
     required double currentWeight,
     required double targetWeight,
     required int targetCalo,
-    required String gender,
-    required String activityLevel,
-    required int dailyBudget, // ĐÃ BỔ SUNG: Tham số ngân sách
+    required List<dynamic> foodDatabase, // THÊM BIẾN NÀY ĐỂ NHẬN DATA TỪ DB
   }) async {
     try {
       final apiKey = dotenv.env['GEMINI_API_KEY'];
       if (apiKey == null || apiKey.isEmpty) {
-        return "Lỗi bảo mật: Không tìm thấy API Key. Vui lòng kiểm tra lại file .env";
+        return "Lỗi: Chưa cấu hình API Key cho Gemini.";
       }
 
-      final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash',
+        apiKey: apiKey,
+      );
 
-      String goal = currentWeight > targetWeight ? "Giảm cân" : "Tăng cân";
+      // Ép kiểu mảng thức ăn thành chuỗi String (JSON Format) để AI có thể đọc hiểu
+      String foodListString = jsonEncode(foodDatabase);
 
-      // PROMPT ĐÃ NÂNG CẤP: Ép AI phải tối ưu chi phí
-      final String prompt =
-          '''
-      Bạn là một chuyên gia dinh dưỡng thực tế và am hiểu giá cả thị trường Việt Nam.
-      Dưới đây là thông tin của tôi:
-      - Giới tính: $gender
-      - Cân nặng hiện tại: ${currentWeight}kg
-      - Mục tiêu: $goal để đạt ${targetWeight}kg
-      - Lượng Calo nạp vào mục tiêu: $targetCalo kcal/ngày.
-      - NGÂN SÁCH ĂN UỐNG TỐI ĐA: $dailyBudget VNĐ/ngày.
+      // KỸ THUẬT RAG: NHÚNG DỮ LIỆU VÀ ÉP BUỘC AI
+      final prompt = '''
+Bạn là một chuyên gia dinh dưỡng thực tế tại Việt Nam.
+Thông tin cơ thể khách hàng: 
+- Cân nặng hiện tại: $currentWeight kg
+- Cân nặng mục tiêu: $targetWeight kg
+- Lượng Calo yêu cầu một ngày: $targetCalo kcal.
 
-      Nhiệm vụ của bạn:
-      Hãy thiết kế một thực đơn 1 ngày (Sáng, Trưa, Tối, Phụ) đáp ứng ĐỒNG THỜI 2 tiêu chí:
-      1. Tổng lượng calo bám sát mức $targetCalo kcal.
-      2. Tổng chi phí mua nguyên liệu KHÔNG ĐƯỢC VƯỢ QUÁ $dailyBudget VNĐ.
+RÀNG BUỘC TỐI CAO (BẮT BUỘC TUÂN THỦ 100%):
+1. Bạn CHỈ ĐƯỢC PHÉP chọn các nguyên liệu nấu ăn từ "Danh sách Cơ sở dữ liệu" (JSON) tôi cung cấp bên dưới để thiết kế thực đơn 3 bữa (Sáng, Trưa, Tối). TUYỆT ĐỐI KHÔNG tự phát minh hoặc thêm bất kỳ nguyên liệu nào nằm ngoài danh sách này.
+2. Dựa vào trường 'pricePer100g' trong JSON, hãy tính toán và ghi rõ tổng số tiền dự kiến cho cả ngày. Đảm bảo giá tiền là thực tế nhất.
+3. Dựa vào trường 'calories' trong JSON, hãy đảm bảo tổng lượng calo 3 bữa bám sát mốc $targetCalo kcal.
+4. Trình bày bằng Tiếng Việt, định dạng Markdown đẹp mắt, phân cấp rõ ràng (dùng in đậm, gạch đầu dòng). Mỗi món ăn phải ghi rõ số lượng gam (g).
 
-      Yêu cầu trình bày:
-      - Gạch đầu dòng rõ ràng từng bữa.
-      - Ước tính lượng Calo VÀ Giá tiền (VNĐ) bên cạnh mỗi món ăn.
-      - Nếu ngân sách hẹp, hãy ưu tiên các thực phẩm bình dân, sinh viên dễ tìm (như trứng, đậu phụ, ức gà, rau theo mùa...).
-      - Cuối cùng, có 1 dòng "Tổng kết: Tổng Calo | Tổng Chi phí" để chứng minh bạn không vượt ngân sách.
-      
-      Trả lời bằng tiếng Việt, thân thiện và súc tích.
-      ''';
+DANH SÁCH CƠ SỞ DỮ LIỆU MÓN ĂN (JSON):
+$foodListString
+''';
 
       final content = [Content.text(prompt)];
       final response = await model.generateContent(content);
 
-      return response.text ?? "AI hiện đang bận, vui lòng thử lại sau nhé.";
+      return response.text ?? "Không thể tạo thực đơn lúc này. Vui lòng thử lại.";
     } catch (e) {
-      print("Lỗi hệ thống AI: $e");
-      return "CHI TIẾT LỖI TỪ GOOGLE:\n$e";
+      return "Hệ thống AI đang bận hoặc có lỗi mạng: $e";
     }
   }
 }

@@ -9,14 +9,16 @@ class CongratulationsScreen extends StatefulWidget {
   final int maintenanceCalo;
   final int targetCalo;
   final bool isLosing;
+  final double targetWeight;
 
   const CongratulationsScreen({
     super.key,
-    this.targetWeightLoss = 12.5, // Dữ liệu mẫu theo thiết kế
-    this.durationDays = 135,
-    this.maintenanceCalo = 2500,
-    this.targetCalo = 1870,
-    this.isLosing = true,
+    required this.targetWeightLoss,
+    required this.durationDays,
+    required this.maintenanceCalo,
+    required this.targetCalo,
+    required this.isLosing,
+    required this.targetWeight,
   });
 
   @override
@@ -256,8 +258,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => AIMenuScreen(
-                      targetWeight:
-                          0, // Placeholder, AI sẽ dùng currentWeight và calo để tính toán
+                      targetWeight: widget.targetWeight,
                       targetCalo: widget.targetCalo,
                     ),
                   ),

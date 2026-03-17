@@ -36,7 +36,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        maxWidth: 500, // Tối ưu dung lượng
+        maxWidth: 500, 
         maxHeight: 500,
         imageQuality: 80,
       );
@@ -44,7 +44,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
       if (pickedFile != null) {
         setState(() {
           _profileImageFile = File(pickedFile.path);
-          _selectedAvatarIndex = null; // Xóa ưu tiên của ảnh có sẵn
+          _selectedAvatarIndex = null; 
         });
       }
     } catch (e) {

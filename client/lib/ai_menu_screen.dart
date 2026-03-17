@@ -29,29 +29,42 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
 
   Future<void> _fetchAndGenerateMenu() async {
     try {
-      // 1. Kéo thông tin user từ Database
-      final result = await AuthService.getUserProfile();
+      // 1. Kéo thông tin user và danh sách món ăn (Database) cùng một lúc
+      final userResult = await AuthService.getUserProfile();
+      final foodResult =
+          await AuthService.getAllFoods(); // Lệnh gọi RAG mới thêm
 
-      if (result['success'] == true && result['user'] != null) {
-        final user = result['user'];
+      if (userResult['success'] == true && userResult['user'] != null) {
+        final user = userResult['user'];
 
-        // PARSE DỮ LIỆU AN TOÀN TUYỆT ĐỐI (Chống crash ngầm nếu DB trả về String)
+        // Trích xuất mảng thức ăn từ Backend (Nếu lỗi mạng đoạn này thì truyền mảng rỗng)
+        final List<dynamic> foodDatabase =
+            (foodResult['success'] == true && foodResult['foods'] != null)
+            ? foodResult['foods']
+            : [];
+
+        // Kiểm tra xem DB có trống không
+        if (foodDatabase.isEmpty) {
+          if (mounted) {
+            setState(() {
+              _aiResponse =
+                  "Cảnh báo: Không tìm thấy dữ liệu món ăn trong Database. Vui lòng kiểm tra lại Backend (chạy hàm /seed).";
+              _isLoading = false;
+            });
+          }
+          return;
+        }
+
+        // PARSE DỮ LIỆU AN TOÀN TUYỆT ĐỐI
         double currentWeight =
             double.tryParse(user['weight'].toString()) ?? 60.0;
-        String gender = user['gender']?.toString() ?? 'Male';
-        String activityLevel = user['activityLevel']?.toString() ?? 'Sedentary';
-        int dailyBudget =
-            int.tryParse(user['dailyBudget'].toString()) ??
-            100000; // Mặc định 100k
 
-        // 2. Gửi thông tin cho Gemini qua AIService
+        // 2. Gửi thông tin cho Gemini qua AIService (KÈM THEO DATABASE MÓN ĂN)
         final menu = await AIService.getDietaryAdvice(
           currentWeight: currentWeight,
           targetWeight: widget.targetWeight,
           targetCalo: widget.targetCalo,
-          gender: gender,
-          activityLevel: activityLevel,
-          dailyBudget: dailyBudget,
+          foodDatabase: foodDatabase, // ĐÂY LÀ CHÌA KHÓA CỦA RAG
         );
 
         // 3. Cập nhật giao diện khi có kết quả từ AI
@@ -62,10 +75,11 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
           });
         }
       } else {
-        // NẾU BACKEND TỪ CHỐI TRẢ DỮ LIỆU
+        // NẾU BACKEND TỪ CHỐI TRẢ DỮ LIỆU USER
         if (mounted) {
           setState(() {
-            _aiResponse = "Lỗi Backend: ${result['message'] ?? 'Không rõ lỗi'}";
+            _aiResponse =
+                "Lỗi Backend: ${userResult['message'] ?? 'Không rõ lỗi'}";
             _isLoading = false;
           });
         }
@@ -84,9 +98,7 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF7F8FA,
-      ), // Nền xám nhạt cho nổi bật thẻ nội dung
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -116,12 +128,17 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
             'assets/images/logo_green.png',
             height: 80,
             color: const Color(0xFF4CAF50).withOpacity(0.5),
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.restaurant,
+              size: 80,
+              color: Color(0xFF4CAF50),
+            ), // Fallback nếu lỗi đường dẫn ảnh
           ),
           const SizedBox(height: 24),
           const CircularProgressIndicator(color: Color(0xFF4CAF50)),
           const SizedBox(height: 24),
           const Text(
-            "AI đang thiết kế thực đơn cho bạn...\nVui lòng chờ trong giây lát!",
+            "AI đang thiết kế thực đơn từ DB chuẩn Viện Dinh Dưỡng...\nVui lòng chờ trong giây lát!",
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Colors.grey, height: 1.5),
           ),
@@ -165,7 +182,6 @@ class _AIMenuScreenState extends State<AIMenuScreen> {
               ],
             ),
             const Divider(height: 30, thickness: 1),
-            // Parse và hiển thị Text từ AI trả về
             // ĐÃ NÂNG CẤP: Dùng MarkdownBody để render các thẻ in đậm, in nghiêng
             MarkdownBody(
               data: _aiResponse,

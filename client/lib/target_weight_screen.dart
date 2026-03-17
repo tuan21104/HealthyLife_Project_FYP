@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'congratulations_screen.dart';
-import 'services/auth_service.dart'; // Đã thêm để gọi API
+import 'services/auth_service.dart';
 
 class TargetWeightScreen extends StatefulWidget {
   final double currentHeight;
@@ -34,8 +34,8 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
   @override
   void initState() {
     super.initState();
-    _calculateSuggestions(); // Tính toán UI (chỉ cần chiều cao/cân nặng)
-    _fetchMedicalData(); // Kéo dữ liệu tuổi, giới tính, vận động từ DB
+    _calculateSuggestions();
+    _fetchMedicalData();
   }
 
   // HÀM KÉO DỮ LIỆU TỪ MONGODB
@@ -71,9 +71,8 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
     _suggestedDays = (_suggestedWeightLoss * 14).round();
   }
 
-  // HÀM TÍNH CALO THEO MIFFLIN-ST JEOR
-  // HÀM TÍNH CALO THEO MIFFLIN-ST JEOR
-  void _calculateTargetAndProceed() {
+  // --- BƯỚC 1: KIỂM TRA RÀO CHẮN Y KHOA TRƯỚC ---
+  void _checkHealthWarningAndProceed() {
     if (_isLoadingData || _userData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -83,6 +82,96 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
       return;
     }
 
+    // Lấy thông số người dùng nhập (Nếu trống thì lấy gợi ý mặc định)
+    double defaultTarget =
+        widget.currentWeight +
+        (_isLosing ? -_suggestedWeightLoss : _suggestedWeightLoss);
+    double targetInputWeight =
+        double.tryParse(_targetWeightController.text) ?? defaultTarget;
+    int days = int.tryParse(_daysController.text) ?? _suggestedDays;
+
+    if (days <= 0) return; // Tránh lỗi chia cho 0
+
+    // Tính tốc độ thay đổi cân nặng (kg/tuần)
+    double weightDifference = widget.currentWeight - targetInputWeight;
+    double kgPerWeek = (weightDifference.abs() / days) * 7;
+
+    // Nếu ép cân/tăng cân quá nhanh (> 1.0 kg/tuần) -> Bật Pop-up Cảnh báo
+    if (kgPerWeek > 1.0) {
+      _showWarningDialog(kgPerWeek, () {
+        _finalizeAndNavigate(targetInputWeight, days, weightDifference);
+      });
+    } else {
+      // Nếu an toàn -> Đi thẳng đến tính toán Calo và Chuyển trang
+      _finalizeAndNavigate(targetInputWeight, days, weightDifference);
+    }
+  }
+
+  // --- HÀM POP-UP CẢNH BÁO ---
+  void _showWarningDialog(double kgPerWeek, VoidCallback onContinue) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Text(
+              "Cảnh báo Y khoa",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          "Mục tiêu của bạn tương đương việc thay đổi ${kgPerWeek.toStringAsFixed(1)} kg/tuần.\n\n"
+          "Theo chuẩn y tế, tốc độ an toàn tối đa là 1.0 kg/tuần để tránh suy nhược cơ thể hoặc mất cơ. "
+          "Chuyên gia khuyến nghị bạn nên tăng số ngày hoặc giảm bớt số cân mục tiêu.",
+          style: const TextStyle(height: 1.5, fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Đóng hộp thoại để sửa số
+            child: const Text(
+              "Sửa lại mục tiêu",
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Đóng hộp thoại
+              onContinue(); // Vẫn cho phép đi tiếp nếu người dùng khăng khăng muốn
+            },
+            child: const Text(
+              "Vẫn tiếp tục",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- BƯỚC 2: TÍNH TOÁN CALO & CHUYỂN TRANG ---
+  void _finalizeAndNavigate(
+    double targetInputWeight,
+    int days,
+    double weightDifference,
+  ) {
     // 1. Tính Tuổi từ BirthDate
     DateTime dob =
         DateTime.tryParse(_userData!['birthDate'] ?? "") ??
@@ -109,28 +198,15 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
 
     int maintenanceCalo = (bmr * multiplier).round();
 
-    // 5. Tính Calo mục tiêu (ĐÃ SỬA LỖI LOGIC NẾU ĐỂ TRỐNG Ô NHẬP LIỆU)
-    // Nếu đang cần giảm cân thì trừ đi, nếu cần tăng cân thì cộng vào
-    double defaultTarget =
-        widget.currentWeight +
-        (_isLosing ? -_suggestedWeightLoss : _suggestedWeightLoss);
-
-    // Ưu tiên số người dùng nhập, nếu trống thì lấy số default
-    double targetInputWeight =
-        double.tryParse(_targetWeightController.text) ?? defaultTarget;
-    int days = int.tryParse(_daysController.text) ?? _suggestedDays;
-
-    double weightDifference =
-        widget.currentWeight -
-        targetInputWeight; // Dương là giảm cân, Âm là tăng cân
+    // 5. Tính Calo mục tiêu
     int targetCalo = maintenanceCalo;
-
     if (days > 0 && weightDifference != 0) {
-      double dailyDeficitOrSurplus = (weightDifference * 7700) / days;
+      double dailyDeficitOrSurplus =
+          (weightDifference * 7700) / days; // 1kg mỡ ~ 7700 calo
       targetCalo = maintenanceCalo - dailyDeficitOrSurplus.round();
     }
 
-    // 6. Giới hạn an toàn y khoa
+    // 6. Giới hạn an toàn y khoa về lượng Calo tối thiểu/tối đa
     if (targetCalo < 1200) targetCalo = 1200;
     if (targetCalo > maintenanceCalo + 1000)
       targetCalo = maintenanceCalo + 1000;
@@ -145,6 +221,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
           maintenanceCalo: maintenanceCalo,
           targetCalo: targetCalo,
           isLosing: weightDifference >= 0,
+          targetWeight: targetInputWeight,
         ),
       ),
     );
@@ -227,7 +304,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
               const SizedBox(height: 60),
 
               Text(
-                "choose a logic weight and duration",
+                "Choose a logical weight and duration",
                 style: TextStyle(fontSize: 14, color: Colors.grey[400]),
               ),
               const SizedBox(height: 16),
@@ -246,8 +323,8 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed:
-                      _calculateTargetAndProceed, // Gọi hàm tính toán nâng cao
+                  // ĐÃ SỬA: Gọi hàm kiểm tra Y khoa trước thay vì chuyển trang thẳng
+                  onPressed: _checkHealthWarningAndProceed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     shape: RoundedRectangleBorder(

@@ -4,6 +4,7 @@ const connectDB = require('./config/db');
 const cors = require('cors');
 
 const authRoute = require('./routes/auth');
+const foodRoutes = require('./routes/food'); 
 
 const app = express();
 
@@ -13,6 +14,8 @@ app.use(express.json());
 app.use(cors());         
 
 app.use('/api/auth', authRoute);
+app.use('/api/foods', foodRoutes);
+app.use('/api/diary', require('./routes/diary'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

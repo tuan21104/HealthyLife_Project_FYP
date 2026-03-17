@@ -200,27 +200,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: 52,
-                      child: OutlinedButton(
+                      child: ElevatedButton(
                         onPressed: () => _showChangeGoalConfirmDialog(context),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                            color: Colors.orange,
-                            width: 2,
-                          ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          elevation: 0,
                         ),
                         child: const Text(
                           "Change Goal",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -280,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
+                backgroundColor: Color.fromARGB(255, 0, 255, 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
