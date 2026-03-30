@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Diary = require('../models/Diary'); // Đảm bảo bạn đã tạo file models/Diary.js trước đó
+const Diary = require('../models/Diary'); 
 
 // 1. API LẤY DỮ LIỆU NHẬT KÝ TỪ CLOUD (Dùng khi đăng nhập máy mới)
 router.get('/:userId/:date', async (req, res) => {
@@ -16,12 +16,14 @@ router.get('/:userId/:date', async (req, res) => {
 // 2. API ĐỒNG BỘ DỮ LIỆU LÊN CLOUD (Sẽ gọi ngầm mỗi khi người dùng thêm/sửa món)
 router.post('/sync', async (req, res) => {
   try {
-    const { userId, date, targetCalo, targetCarb, targetProtein, targetFat, breakfast, lunch, snack, dinner } = req.body;
+    // ĐÃ BỔ SUNG 'exercise' VÀO ĐÂY ĐỂ HỨNG DATA TỪ APP
+    const { userId, date, targetCalo, targetCarb, targetProtein, targetFat, breakfast, lunch, snack, dinner, exercise } = req.body;
     
     // Upsert: Cập nhật bản ghi cũ hoặc tạo mới nếu đây là ngày mới
     const diary = await Diary.findOneAndUpdate(
       { userId, date },
-      { targetCalo, targetCarb, targetProtein, targetFat, breakfast, lunch, snack, dinner },
+      // ĐÃ BỔ SUNG 'exercise' VÀO ĐÂY ĐỂ LƯU XUỐNG MONGODB
+      { targetCalo, targetCarb, targetProtein, targetFat, breakfast, lunch, snack, dinner, exercise },
       { new: true, upsert: true }
     );
 

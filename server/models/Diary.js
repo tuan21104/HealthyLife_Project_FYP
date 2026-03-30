@@ -18,6 +18,7 @@ const diarySchema = new mongoose.Schema({
   // Lưu danh sách món ăn của từng bữa
   breakfast: { type: Array, default: [] },
   lunch: { type: Array, default: [] },
+  exercise: { type: Array, default: [] },
   snack: { type: Array, default: [] },
   dinner: { type: Array, default: [] }
 }, { timestamps: true });

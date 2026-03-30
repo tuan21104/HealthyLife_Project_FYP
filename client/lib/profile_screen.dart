@@ -52,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // --- LOGIC ĐĂNG XUẤT ---
   Future<void> _handleLogout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwt_token');
+    await prefs.clear();
 
     if (!context.mounted) return;
     Navigator.pushAndRemoveUntil(

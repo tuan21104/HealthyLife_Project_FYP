@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 class AuthService {
-  static const String myWifiIp = '172.20.10.11';
+  static const String myWifiIp = '192.168.99.114';
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;
@@ -42,7 +42,7 @@ class AuthService {
     }
   }
 
-  // --- HÀM 2: ĐĂNG NHẬP (LƯU TOKEN VÀO ĐIỆN THOẠI) ---
+  // --- HÀM 2: ĐĂNG NHẬP (LƯU TOKEN VÀ USER ID VÀO ĐIỆN THOẠI) ---
   static Future<Map<String, dynamic>> login(
     String email,
     String password,
@@ -50,9 +50,7 @@ class AuthService {
     try {
       final response = await http
           .post(
-            Uri.parse(
-              '$baseUrl/api/auth/login',
-            ), // Thêm /auth/ vào từng endpoint
+            Uri.parse('$baseUrl/api/auth/login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'email': email, 'password': password}),
           )
@@ -60,11 +58,35 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print("==== 🕵️‍♂️ DỮ LIỆU LOGIN BACKEND GỬI VỀ LÀ: $data ====");
 
         if (data['token'] != null) {
           final prefs = await SharedPreferences.getInstance();
+
+          // 1. Lưu Token
           await prefs.setString('jwt_token', data['token']);
-          print("Đã lưu Token thành công: ${data['token']}");
+
+          // 2. LƯU USER ID (ĐÃ SỬA CHUẨN XÁC 100%)
+          String userId = "";
+
+          if (data['user'] != null) {
+            // Chỉ cần data['user'] tồn tại, ta sẽ vét cạn tìm 'id' hoặc '_id'
+            userId =
+                data['user']['id']?.toString() ??
+                data['user']['_id']?.toString() ??
+                "";
+          } else if (data['userId'] != null) {
+            userId = data['userId']?.toString() ?? "";
+          }
+
+          if (userId.isNotEmpty) {
+            await prefs.setString('userId', userId);
+            print("==== ✅ Đã lưu Token và UserId: $userId ====");
+          } else {
+            print(
+              "==== ⚠️ CẢNH BÁO: Đăng nhập thành công nhưng Backend không trả về UserId! ====",
+            );
+          }
         }
 
         return {
@@ -122,14 +144,14 @@ class AuthService {
     }
   }
 
-// --- HÀM LẤY THÔNG TIN PROFILE CÓ GẮN TOKEN ---
+  // --- HÀM LẤY THÔNG TIN PROFILE CÓ GẮN TOKEN ---
   static Future<dynamic> getUserProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // 1. Lấy vé VIP (Token) và ID từ kho lưu trữ Local
       // (Dự phòng cả 2 tên biến phổ biến là 'jwt_token' và 'token')
-      final token = prefs.getString('jwt_token') ?? prefs.getString('token'); 
+      final token = prefs.getString('jwt_token') ?? prefs.getString('token');
       final userId = prefs.getString('userId');
 
       if (token == null) {
@@ -137,13 +159,15 @@ class AuthService {
         return {'success': false, 'message': 'Chưa đăng nhập'};
       }
 
-      print("==== 🔄 ĐANG LẤY PROFILE VỚI TOKEN: ${token.substring(0, 10)}... ====");
+      print(
+        "==== 🔄 ĐANG LẤY PROFILE VỚI TOKEN: ${token.substring(0, 10)}... ====",
+      );
 
       // 2. Gọi API kèm theo Vé VIP trong Header
-      // Lưu ý: Thay đổi URL '/api/users/$userId' cho đúng với API Node.js của bạn 
+      // Lưu ý: Thay đổi URL '/api/users/$userId' cho đúng với API Node.js của bạn
       // (Một số backend dùng '/api/users/profile' hoặc '/api/auth/me')
       final response = await http.get(
-        Uri.parse('$baseUrl/api/users/$userId'), 
+        Uri.parse('$baseUrl/api/users/$userId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token', // <--- ĐÂY LÀ DÒNG QUAN TRỌNG NHẤT
@@ -154,7 +178,10 @@ class AuthService {
         return jsonDecode(response.body);
       } else {
         print("==== 🚨 SERVER TỪ CHỐI: ${response.body} ====");
-        return {'success': false, 'message': 'Lỗi xác thực: ${response.statusCode}'};
+        return {
+          'success': false,
+          'message': 'Lỗi xác thực: ${response.statusCode}',
+        };
       }
     } catch (e) {
       print("==== 🚨 LỖI GỌI API PROFILE: $e ====");
