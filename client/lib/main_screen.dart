@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'profile_screen.dart';
+import 'diary_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,12 +21,7 @@ class _MainScreenState extends State<MainScreen> {
         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
     ),
-    const Center(
-      child: Text(
-        "📊 Trang Diaries (Sắp ra mắt)",
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
-    ),
+    const DiaryScreen(),
     const Center(
       child: Text(
         "⚙️ Trang Settings (Sắp ra mắt)",

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'landing_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'diary_screen.dart';
+import 'login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,7 +10,7 @@ void main() async {
   // Tải các biến môi trường từ file .env lên bộ nhớ
   await dotenv.load(fileName: ".env");
 
-  runApp(const MyApp()); 
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF4CAF50),
         useMaterial3: true,
       ),
-      home: const DiaryScreen(),
+      home: const LoginScreen(),
     );
   }
 }

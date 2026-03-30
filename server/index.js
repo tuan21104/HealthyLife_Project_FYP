@@ -16,6 +16,9 @@ app.use(cors());
 app.use('/api/auth', authRoute);
 app.use('/api/foods', foodRoutes);
 app.use('/api/diary', require('./routes/diary'));
+app.use('/api/user-foods', require('./routes/userFood'));
+app.use('/api/recipes', require('./routes/recipe'));
+app.use('/api/upload', require('./routes/upload'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

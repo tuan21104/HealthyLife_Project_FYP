@@ -1,13 +1,65 @@
+import 'dart:io';
 import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AIService {
+  // ======================================================================
+  // 1. TÍNH NĂNG MẮT THẦN: QUÉT ẢNH NHẬN DIỆN MÓN ĂN & MACRO
+  // ======================================================================
+  static Future<Map<String, dynamic>?> analyzeFoodImage(File imageFile) async {
+    try {
+      final apiKey = dotenv.env['GEMINI_API_KEY'];
+      if (apiKey == null || apiKey.isEmpty) {
+        print("⚠️ BÁO ĐỘNG: Chưa cấu hình API Key trong file .env!");
+        return null;
+      }
+
+      final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
+
+      final prompt = TextPart('''
+        Bạn là một chuyên gia dinh dưỡng khắt khe. Hãy phân tích hình ảnh món ăn này.
+        Xác định tên món ăn và ước lượng giá trị dinh dưỡng cho 100g.
+        BẮT BUỘC trả về ĐÚNG định dạng JSON như mẫu dưới đây, KHÔNG kèm theo bất kỳ văn bản giải thích nào khác, KHÔNG dùng markdown (```json):
+        {
+          "name": "Tên món ăn (Tiếng Việt)",
+          "calories": 100.0,
+          "protein": 10.0,
+          "carbs": 20.0,
+          "fat": 5.0
+        }
+      ''');
+
+      final imageBytes = await imageFile.readAsBytes();
+      final imagePart = DataPart('image/jpeg', imageBytes);
+
+      final response = await model.generateContent([
+        Content.multi([prompt, imagePart]),
+      ]);
+
+      final text = response.text;
+      if (text != null) {
+        String cleanJson = text
+            .replaceAll('```json', '')
+            .replaceAll('```', '')
+            .trim();
+        return jsonDecode(cleanJson);
+      }
+      return null;
+    } catch (e) {
+      print("==== 🚨 LỖI TỪ BỘ NÃO AI (IMAGE): $e ====");
+      return null;
+    }
+  }
+
+  // ======================================================================
+  // 2. TÍNH NĂNG RAG: TƯ VẤN THỰC ĐƠN DỰA TRÊN DATABASE CÓ SẴN
+  // ======================================================================
   static Future<String> getDietaryAdvice({
     required double currentWeight,
     required double targetWeight,
     required int targetCalo,
-    required List<dynamic> foodDatabase, // THÊM BIẾN NÀY ĐỂ NHẬN DATA TỪ DB
+    required List<dynamic> foodDatabase, // Nhận data từ DB
   }) async {
     try {
       final apiKey = dotenv.env['GEMINI_API_KEY'];
@@ -15,16 +67,16 @@ class AIService {
         return "Lỗi: Chưa cấu hình API Key cho Gemini.";
       }
 
-      final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
-        apiKey: apiKey,
-      );
+      // Lưu ý nhỏ: Bạn đang để 'gemini-2.5-flash'.
+      // Nếu API báo lỗi không tìm thấy model, bạn có thể đổi thành 'gemini-1.5-flash' hoặc 'gemini-2.0-flash' nhé.
+      final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
 
       // Ép kiểu mảng thức ăn thành chuỗi String (JSON Format) để AI có thể đọc hiểu
       String foodListString = jsonEncode(foodDatabase);
 
       // KỸ THUẬT RAG: NHÚNG DỮ LIỆU VÀ ÉP BUỘC AI
-      final prompt = '''
+      final prompt =
+          '''
 Bạn là một chuyên gia dinh dưỡng thực tế tại Việt Nam.
 Thông tin cơ thể khách hàng: 
 - Cân nặng hiện tại: $currentWeight kg
@@ -44,7 +96,8 @@ $foodListString
       final content = [Content.text(prompt)];
       final response = await model.generateContent(content);
 
-      return response.text ?? "Không thể tạo thực đơn lúc này. Vui lòng thử lại.";
+      return response.text ??
+          "Không thể tạo thực đơn lúc này. Vui lòng thử lại.";
     } catch (e) {
       return "Hệ thống AI đang bận hoặc có lỗi mạng: $e";
     }

@@ -49,5 +49,9 @@
 	<string>Ứng dụng cần quyền truy cập camera để bạn có thể chụp ảnh đại diện.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Ứng dụng cần quyền truy cập thư viện để bạn chọn ảnh đại diện.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập Camera để quét món ăn.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập Thư viện để chọn ảnh món ăn.</string>
 </dict>
 </plist>

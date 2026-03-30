@@ -23,12 +23,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = false;
 
   // --- BIẾN QUẢN LÝ AVATAR ---
-  int? _selectedAvatarIndex; 
-  File? _profileImageFile;   
+  int? _selectedAvatarIndex;
+  File? _profileImageFile;
   final ImagePicker _picker = ImagePicker();
-  int _selectedPicOption = 0; 
+  int _selectedPicOption = 0;
 
-  final List<String> _activities = ["Sedentary", "Lightly Active", "Moderately Active", "Very Active"];
+  final List<String> _activities = [
+    "Sedentary",
+    "Lightly Active",
+    "Moderately Active",
+    "Very Active",
+  ];
 
   @override
   void initState() {
@@ -40,7 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _selectedGender = widget.userData['gender'] ?? 'Male';
     _selectedActivity = widget.userData['activityLevel'] ?? 'Sedentary';
     _selectedAvatarIndex = widget.userData['avatarIndex']; // Load avatar cũ
-    
+
     if (widget.userData['birthDate'] != null) {
       _selectedDate = DateTime.tryParse(widget.userData['birthDate']);
     }
@@ -59,7 +64,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (pickedFile != null) {
         setState(() {
           _profileImageFile = File(pickedFile.path);
-          _selectedAvatarIndex = null; 
+          _selectedAvatarIndex = null;
         });
       }
     } catch (e) {
@@ -68,17 +73,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _handleSave() async {
-    if (_nameController.text.isEmpty || _heightController.text.isEmpty || _weightController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Vui lòng không để trống thông tin!"), backgroundColor: Colors.red));
+    if (_nameController.text.isEmpty ||
+        _heightController.text.isEmpty ||
+        _weightController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Vui lòng không để trống thông tin!"),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
-    String email = widget.userData['email']; 
+    String email = widget.userData['email'];
     double height = double.tryParse(_heightController.text) ?? 0;
     double weight = double.tryParse(_weightController.text) ?? 0;
-    String birthDateStr = _selectedDate != null 
+    String birthDateStr = _selectedDate != null
         ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
         : "";
 
@@ -97,11 +109,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (success) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cập nhật thành công!"), backgroundColor: Colors.green));
-      Navigator.pop(context, true); 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Cập nhật thành công!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context, true);
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cập nhật thất bại!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Cập nhật thất bại!"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -116,7 +138,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.grey),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("Edit Profile", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -135,18 +160,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       backgroundImage: _profileImageFile != null
                           ? FileImage(_profileImageFile!) as ImageProvider
                           : (_selectedAvatarIndex != null
-                              ? AssetImage('assets/images/avatar_${_selectedAvatarIndex! + 1}.png')
-                              : null),
-                      child: _profileImageFile == null && _selectedAvatarIndex == null
-                          ? Icon(Icons.person, size: 50, color: Colors.grey[400])
+                                ? AssetImage(
+                                    'assets/images/avatar_${_selectedAvatarIndex! + 1}.png',
+                                  )
+                                : null),
+                      child:
+                          _profileImageFile == null &&
+                              _selectedAvatarIndex == null
+                          ? Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Colors.grey[400],
+                            )
                           : null,
                     ),
                     GestureDetector(
                       onTap: _showProfilePictureDialog,
                       child: Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: const Color(0xFF4CAF50), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ],
@@ -156,7 +197,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
               // --- FORM NHẬP LIỆU (Giữ nguyên) ---
               _buildLabel("Full Name"),
-              _buildTextField(controller: _nameController, hint: "Enter your name"),
+              _buildTextField(
+                controller: _nameController,
+                hint: "Enter your name",
+              ),
               const SizedBox(height: 20),
 
               Row(
@@ -166,7 +210,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildLabel("Height (cm)"),
-                        _buildTextField(controller: _heightController, hint: "e.g. 170", isNumber: true),
+                        _buildTextField(
+                          controller: _heightController,
+                          hint: "e.g. 170",
+                          isNumber: true,
+                        ),
                       ],
                     ),
                   ),
@@ -176,7 +224,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildLabel("Weight (kg)"),
-                        _buildTextField(controller: _weightController, hint: "e.g. 65", isNumber: true),
+                        _buildTextField(
+                          controller: _weightController,
+                          hint: "e.g. 65",
+                          isNumber: true,
+                        ),
                       ],
                     ),
                   ),
@@ -217,12 +269,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   onPressed: _isLoading ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
-                  child: _isLoading 
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text("Save Changes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Save Changes",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -234,16 +302,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildLabel(String text) {
-    return Padding(padding: const EdgeInsets.only(bottom: 8.0), child: Text(text, style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w500)));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String hint, bool isNumber = false}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    bool isNumber = false,
+  }) {
     return TextField(
-      controller: controller, keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
-        hintText: hint, hintStyle: TextStyle(color: Colors.grey[400]), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[400]),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
       ),
     );
   }
@@ -251,86 +345,236 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildDropdownField(String value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(value, style: const TextStyle(color: Colors.black87, fontSize: 16)),
-        const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-      ]),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(color: Colors.black87, fontSize: 16),
+          ),
+          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        ],
+      ),
     );
   }
 
   // --- LOGIC POPUP CHỌN ẢNH TỪ STEP 2 ---
   void _showProfilePictureDialog() {
-    _selectedPicOption = 0; 
-    showDialog(context: context, builder: (context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text("Profile Picture", style: TextStyle(fontWeight: FontWeight.bold)),
-          IconButton(icon: const Icon(Icons.close, color: Colors.grey), onPressed: () => Navigator.pop(context))
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _buildRadioOption("Choose from available avatars", 0),
-          _buildRadioOption("Choose from library", 1),
-          _buildRadioOption("Take photo", 2),
-          _buildRadioOption("Remove current picture", 3),
-        ]),
-        actions: [
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            onPressed: () {
-              Navigator.pop(context);
-              if (_selectedPicOption == 0) _showAvatarGridDialog();
-              else if (_selectedPicOption == 1) _pickImage(ImageSource.gallery);
-              else if (_selectedPicOption == 2) _pickImage(ImageSource.camera);
-              else if (_selectedPicOption == 3) setState(() { _profileImageFile = null; _selectedAvatarIndex = null; });
-            },
-            child: const Text("OK", style: TextStyle(color: Colors.white)),
-          ))
-        ],
-      );
-    });
+    _selectedPicOption = 0;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Profile Picture",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildRadioOption("Choose from available avatars", 0),
+              _buildRadioOption("Choose from library", 1),
+              _buildRadioOption("Take photo", 2),
+              _buildRadioOption("Remove current picture", 3),
+            ],
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  if (_selectedPicOption == 0)
+                    _showAvatarGridDialog();
+                  else if (_selectedPicOption == 1)
+                    _pickImage(ImageSource.gallery);
+                  else if (_selectedPicOption == 2)
+                    _pickImage(ImageSource.camera);
+                  else if (_selectedPicOption == 3)
+                    setState(() {
+                      _profileImageFile = null;
+                      _selectedAvatarIndex = null;
+                    });
+                },
+                child: const Text("OK", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildRadioOption(String title, int value) {
-    return StatefulBuilder(builder: (context, setStateSB) {
-      return RadioListTile<int>(
-        title: Text(title, style: const TextStyle(fontSize: 14)), value: value, groupValue: _selectedPicOption, activeColor: const Color(0xFF4CAF50),
-        contentPadding: EdgeInsets.zero, onChanged: (val) => setStateSB(() => _selectedPicOption = val!),
-      );
-    });
+    return StatefulBuilder(
+      builder: (context, setStateSB) {
+        return RadioListTile<int>(
+          title: Text(title, style: const TextStyle(fontSize: 14)),
+          value: value,
+          groupValue: _selectedPicOption,
+          activeColor: const Color(0xFF4CAF50),
+          contentPadding: EdgeInsets.zero,
+          onChanged: (val) => setStateSB(() => _selectedPicOption = val!),
+        );
+      },
+    );
   }
 
   void _showAvatarGridDialog() {
-    showDialog(context: context, builder: (context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text("Profile Picture", style: TextStyle(fontWeight: FontWeight.bold)),
-          IconButton(icon: const Icon(Icons.close, color: Colors.grey), onPressed: () => Navigator.pop(context))
-        ]),
-        content: Wrap(
-          spacing: 16, runSpacing: 16, alignment: WrapAlignment.center,
-          children: List.generate(6, (index) => GestureDetector(
-            onTap: () { setState(() { _selectedAvatarIndex = index; _profileImageFile = null; }); Navigator.pop(context); },
-            child: CircleAvatar(radius: 35, backgroundColor: Colors.transparent, backgroundImage: AssetImage('assets/images/avatar_${index + 1}.png')),
-          )),
-        ),
-        actions: [
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK", style: TextStyle(color: Colors.white)),
-          ))
-        ],
-      );
-    });
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Profile Picture",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          content: Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: List.generate(
+              6,
+              (index) => GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedAvatarIndex = index;
+                    _profileImageFile = null;
+                  });
+                  Navigator.pop(context);
+                },
+                child: CircleAvatar(
+                  radius: 35,
+                  backgroundColor: Colors.transparent,
+                  backgroundImage: AssetImage(
+                    'assets/images/avatar_${index + 1}.png',
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  void _showActivityDialog() { showDialog(context: context, builder: (context) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text("Activity Level", style: TextStyle(fontWeight: FontWeight.bold)), content: Column(mainAxisSize: MainAxisSize.min, children: _activities.map((act) => ListTile(title: Text(act), onTap: () { setState(() => _selectedActivity = act); Navigator.pop(context); })).toList()))); }
-  void _showGenderDialog() { showDialog(context: context, builder: (context) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text("Select Gender", style: TextStyle(fontWeight: FontWeight.bold)), content: Column(mainAxisSize: MainAxisSize.min, children: ["Male", "Female", "Other"].map((g) => ListTile(title: Text(g), onTap: () { setState(() => _selectedGender = g); Navigator.pop(context); })).toList()))); }
+  void _showActivityDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Activity Level",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _activities
+              .map(
+                (act) => ListTile(
+                  title: Text(act),
+                  onTap: () {
+                    setState(() => _selectedActivity = act);
+                    Navigator.pop(context);
+                  },
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showGenderDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Select Gender",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: ["Male", "Female", "Other"]
+              .map(
+                (g) => ListTile(
+                  title: Text(g),
+                  onTap: () {
+                    setState(() => _selectedGender = g);
+                    Navigator.pop(context);
+                  },
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(context: context, initialDate: _selectedDate ?? DateTime(2000, 1, 1), firstDate: DateTime(1900), lastDate: DateTime.now(), builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF4CAF50))), child: child!));
-    if (picked != null && picked != _selectedDate) setState(() => _selectedDate = picked);
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime(2000, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Color(0xFF4CAF50)),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && picked != _selectedDate)
+      setState(() => _selectedDate = picked);
   }
 }

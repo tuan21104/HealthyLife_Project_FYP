@@ -22,16 +22,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserData();
   }
 
-  // Hàm tự động chạy để kéo dữ liệu từ DB về
+  // Hàm tự động chạy để kéo dữ liệu từ DB về (Đã gắn Radar bắt lỗi)
   Future<void> _fetchUserData() async {
-    final result = await AuthService.getUserProfile();
-    if (mounted) {
-      setState(() {
-        if (result['success'] == true) {
-          _userData = result['user'];
-        }
-        _isLoading = false;
-      });
+    print("==== 🔄 ĐANG GỌI API LẤY PROFILE... ====");
+    try {
+      final result = await AuthService.getUserProfile();
+      print("==== 📥 KẾT QUẢ API PROFILE TRẢ VỀ: $result ====");
+
+      if (mounted) {
+        setState(() {
+          // Linh hoạt kiểm tra: Đề phòng backend trả về 'data' thay vì 'user'
+          if (result != null &&
+              (result['success'] == true || result['user'] != null)) {
+            _userData = result['user'] ?? result['data'];
+          } else {
+            print("⚠️ CẢNH BÁO: Dữ liệu trả về bị rỗng hoặc success = false");
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("==== 🚨 LỖI CRASH KHI GỌI API PROFILE: $e ====");
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
