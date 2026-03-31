@@ -64,7 +64,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     double weight = double.parse(_weightController.text);
     if (!_isKg) weight = weight * 0.453592; // Chuyển lbs sang kg
 
-    bool success = await AuthService.updateProfile(widget.email, {
+    bool success = await AuthService.updateProfile( {
       'height': height,
       'weight': weight,
       'activityLevel': _selectedActivity,

@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
-import 'landing_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'diary_screen.dart';
+import 'dart:io'; // Quan trọng để dùng HttpOverrides
 import 'login_screen.dart';
+
+// Class này giúp bỏ qua kiểm tra chứng chỉ SSL lỗi thời trên máy ảo Android
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Tải các biến môi trường từ file .env lên bộ nhớ
+  // Kích hoạt ghi đè HTTP trước khi load app
+  HttpOverrides.global = MyHttpOverrides();
+
+  // Tải các biến môi trường
   await dotenv.load(fileName: ".env");
 
   runApp(const MyApp());

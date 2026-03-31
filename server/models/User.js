@@ -50,6 +50,10 @@ const UserSchema = new mongoose.Schema({
         type: Number, 
         default: 0
     },
+    avatarUrl: { // Thêm trường avatarUrl
+        type: String,
+        default: ''
+    },
     avatarIndex: { 
         type: Number, 
         default: null 

@@ -4,6 +4,7 @@ import 'services/auth_service.dart';
 import 'login_screen.dart';
 import 'edit_profile_screen.dart';
 import 'user_info_step1_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // Đã thêm để load ảnh mượt hơn
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,7 +23,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserData();
   }
 
-  // Hàm tự động chạy để kéo dữ liệu từ DB về (Đã gắn Radar bắt lỗi)
   Future<void> _fetchUserData() async {
     print("==== 🔄 ĐANG GỌI API LẤY PROFILE... ====");
     try {
@@ -31,7 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         setState(() {
-          // Linh hoạt kiểm tra: Đề phòng backend trả về 'data' thay vì 'user'
           if (result != null &&
               (result['success'] == true || result['user'] != null)) {
             _userData = result['user'] ?? result['data'];
@@ -49,7 +48,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- LOGIC ĐĂNG XUẤT ---
   Future<void> _handleLogout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -82,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
-            ) // Hiện vòng xoay lúc đang tải
+            )
           : _userData == null
           ? const Center(child: Text("Lỗi tải dữ liệu. Vui lòng thử lại!"))
           : SingleChildScrollView(
@@ -93,25 +91,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const SizedBox(height: 20),
 
+                    // --- PHẦN AVATAR: ĐÃ SỬA LỖI UNDEFINED 'USER' ---
                     CircleAvatar(
-                      radius: 50,
-                      backgroundColor: const Color(0xFFE8F5E9),
-                      backgroundImage: _userData?['avatarIndex'] != null
-                          ? AssetImage(
-                              'assets/images/avatar_${_userData!['avatarIndex'] + 1}.png',
-                            )
-                          : null,
-                      child: _userData?['avatarIndex'] == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Color(0xFF4CAF50),
-                            )
-                          : null,
+                      radius: 40,
+                      backgroundColor: Colors.grey[200],
+                      child: ClipOval(
+                        child:
+                            (_userData?['avatarUrl'] != null &&
+                                _userData!['avatarUrl'].toString().isNotEmpty)
+                            ? CachedNetworkImage(
+                                imageUrl: _userData!['avatarUrl'],
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) =>
+                                    const CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                errorWidget: (context, url, error) =>
+                                    _buildPlaceholderIcon(),
+                              )
+                            : _buildPlaceholderIcon(),
+                      ),
                     ),
                     const SizedBox(height: 40),
 
-                    // ĐỔ DỮ LIỆU THẬT VÀO ĐÂY (Nếu null thì hiện 'Chưa cập nhật')
                     _buildProfileRow(
                       "Name:",
                       _userData?['name'] ?? "Chưa cập nhật",
@@ -149,7 +153,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       height: 52,
                       child: ElevatedButton(
                         onPressed: () async {
-                          // Chuyển sang trang Edit và chờ kết quả trả về
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -158,12 +161,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           );
 
-                          // Nếu result == true (người dùng bấm Save thành công), tự động tải lại dữ liệu mới
                           if (result == true) {
                             setState(() {
-                              _isLoading = true; // Hiện vòng quay loading
+                              _isLoading = true;
                             });
-                            _fetchUserData(); // Gọi lại API để cập nhật UI
+                            _fetchUserData();
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -242,6 +244,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // --- HÀM PHỤ TRỢ HIỂN THỊ ICON KHI KHÔNG CÓ ẢNH MẠNG ---
+  Widget _buildPlaceholderIcon() {
+    if (_userData?['avatarIndex'] != null) {
+      return Image.asset(
+        'assets/images/avatar_${_userData!['avatarIndex'] + 1}.png',
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+      );
+    }
+    return const Icon(Icons.person, size: 40, color: Colors.grey);
+  }
+
   Widget _buildProfileRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -266,7 +281,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // HÀM HIỂN THỊ HỘP THOẠI CONFIRM ĐỔI MỤC TIÊU
   void _showChangeGoalConfirmDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -285,7 +299,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context), // Đóng hộp thoại
+              onPressed: () => Navigator.pop(context),
               child: const Text(
                 "Cancel",
                 style: TextStyle(color: Colors.grey, fontSize: 16),
@@ -293,17 +307,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color.fromARGB(255, 0, 255, 8),
+                backgroundColor: const Color.fromARGB(255, 0, 255, 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
                 elevation: 0,
               ),
               onPressed: () {
-                // 1. Đóng hộp thoại
                 Navigator.pop(context);
-
-                // 2. Xóa sạch lịch sử trang và quay thẳng về Step 1
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(

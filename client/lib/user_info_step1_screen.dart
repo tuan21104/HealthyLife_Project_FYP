@@ -31,7 +31,7 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
       return;
     }
 
-    bool success = await AuthService.updateProfile(widget.email, {
+    bool success = await AuthService.updateProfile({
       'name': _nameController.text,
       'gender': _selectedGender,
       'dailyBudget': int.tryParse(_budgetController.text) ?? 0,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'profile_screen.dart';
 import 'diary_screen.dart';
+import 'home_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,14 +14,8 @@ class _MainScreenState extends State<MainScreen> {
   // Biến lưu trữ tab đang được chọn (Mặc định là 0 - Home)
   int _selectedIndex = 0;
 
-  // Danh sách 4 màn hình con (Tạm thời để chữ, chúng ta sẽ code giao diện thật sau)
   final List<Widget> _pages = [
-    const Center(
-      child: Text(
-        "🏠 Trang Home (Sắp ra mắt)",
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
-    ),
+    const HomeScreen(),
     const DiaryScreen(),
     const Center(
       child: Text(

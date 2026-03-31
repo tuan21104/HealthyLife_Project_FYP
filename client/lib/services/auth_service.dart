@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 class AuthService {
-  static const String myWifiIp = '192.168.99.114';
+  static const String myWifiIp = '172.20.10.11';
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;
@@ -105,26 +105,21 @@ class AuthService {
     }
   }
 
-  // --- HÀM 3: CẬP NHẬT THÔNG TIN ---
-  static Future<bool> updateProfile(
-    String email,
-    Map<String, dynamic> profileData,
-  ) async {
+  // --- HÀM 3: CẬP NHẬT THÔNG TIN (BẢN FIX TRIỆT ĐỂ LỖI OBJECTID) ---// Trong file lib/services/auth_service.dart
+  static Future<bool> updateProfile(Map<String, dynamic> profileData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString(
+        'userId',
+      ); // Tự lấy ID từ máy, không bắt truyền vào nữa
       final token = prefs.getString('jwt_token');
 
-      if (token == null) {
-        print("Lỗi: Không tìm thấy Token.");
-        return false;
-      }
+      if (userId == null) return false;
 
-      profileData['email'] = email;
+      profileData['userId'] = userId; // Gán ID vào body
 
-      final response = await http.post(
-        Uri.parse(
-          '$baseUrl/api/auth/update-profile',
-        ), // Thêm /auth/ vào từng endpoint
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/users/update'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -132,14 +127,9 @@ class AuthService {
         body: jsonEncode(profileData),
       );
 
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        print("Server từ chối lưu DB. Mã lỗi: ${response.statusCode}");
-        return false;
-      }
+      return response.statusCode == 200;
     } catch (e) {
-      print("Lỗi kết nối khi updateProfile: $e");
+      print("Lỗi updateProfile: $e");
       return false;
     }
   }
@@ -431,5 +421,26 @@ class AuthService {
       print("==== 🚨 LỖI XÓA MÓN ĂN: $e ====");
       return false;
     }
+  }
+
+  // --- HÀM 4: LẤY THỐNG KÊ HOME TỪ SERVER NODE.JS (Cần viết API bên Node.js nhé) ---
+  static Future<Map<String, dynamic>?> getHomeStatistics(String userId) async {
+    try {
+      print("==== 🌐 GỌI API ĐẾN: $baseUrl/api/statistics/home/$userId ====");
+      final response = await http
+          .get(
+            Uri.parse(
+              '$baseUrl/api/statistics/home/$userId',
+            ), // Đường dẫn API này cần viết ở Node.js
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['data'];
+      }
+    } catch (e) {
+      print("Lỗi gọi API Home Statistics: $e");
+    }
+    return null; // Trả về null nếu lỗi để Flutter dùng data mặc định
   }
 }
