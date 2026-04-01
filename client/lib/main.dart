@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io'; // Quan trọng để dùng HttpOverrides
-import 'login_screen.dart';
+import 'landing_screen.dart';
 
 // Class này giúp bỏ qua kiểm tra chứng chỉ SSL lỗi thời trên máy ảo Android
 class MyHttpOverrides extends HttpOverrides {
@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF4CAF50),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const LandingScreen(),
     );
   }
 }

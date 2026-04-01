@@ -443,4 +443,52 @@ class AuthService {
     }
     return null; // Trả về null nếu lỗi để Flutter dùng data mặc định
   }
+
+  // --- HÀM REDEEM MỚI: Nhận đầy đủ Bill và Địa chỉ ---
+  static Future<Map<String, dynamic>?> redeemProduct({
+    required String productId,
+    required String billUrl,
+    required String address,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      final token = prefs.getString('jwt_token');
+
+      if (userId == null)
+        return {'success': false, 'message': 'Lỗi ID người dùng'};
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/shop/redeem'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'productId': productId,
+          'billUrl': billUrl, // Đưa link ảnh bill vào đây
+          'address': address, // Đưa địa chỉ vào đây
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print("Lỗi gọi API Redeem: $e");
+      return {'success': false, 'message': 'Không thể kết nối Server'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getAllProducts() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/shop/all'))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return {'success': false, 'products': []};
+    } catch (e) {
+      return {'success': false, 'products': []};
+    }
+  }
 }

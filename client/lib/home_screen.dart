@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/auth_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'shop_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Color _bgColor = const Color(0xFFF8F9FA);
 
   bool _isLoading = true;
+  bool _isFetched = false;
   String _userName = "User";
   double targetCalo = 1800;
   double currentCaloTaken = 0;
@@ -35,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchRealData() async {
+    if (_isFetched && !_isLoading) return;
     final prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString('userId');
 
@@ -45,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final results = await Future.wait([
         AuthService.getUserProfile(),
         AuthService.getHomeStatistics(userId),
-      ]);
+      ]).timeout(const Duration(seconds: 10));
 
       final userProfile = results[0];
       final statsData = results[1];
@@ -76,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 .toList();
           }
           _isLoading = false;
+          _isFetched = true;
         });
       }
     } else {
@@ -96,7 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: _bgColor,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _fetchRealData,
+          onRefresh: () async {
+            _isFetched = false;
+            await _fetchRealData();
+          },
           color: _greenColor,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -154,6 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       imageUrl: _userAvatarUrl!,
                       width: 48,
                       height: 48,
+                      memCacheWidth: 100,
                       fit: BoxFit.cover,
                       placeholder: (context, url) =>
                           const CircularProgressIndicator(strokeWidth: 2),
@@ -436,39 +444,77 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 5. ACTION BUTTONS (Đã đổi Log Meal -> Shopping)
   Widget _buildActionButtons() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildQuickButton(Icons.restaurant_menu, "Log Meal"),
-        _buildQuickButton(Icons.account_balance_wallet, "Add Expense"),
-        _buildQuickButton(Icons.auto_awesome, "AI Chat"),
+        _buildQuickButton(
+          Icons.shopping_bag_outlined,
+          "Shopping",
+          onTap: () {
+            // Chuyển sang trang Shop
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ShopScreen()),
+            );
+          },
+        ),
+        _buildQuickButton(
+          Icons.account_balance_wallet_outlined,
+          "Add Expense",
+          onTap: () {
+            // Logic thêm chi tiêu
+          },
+        ),
+        _buildQuickButton(
+          Icons.auto_awesome_outlined,
+          "AI Chat",
+          onTap: () {
+            // Logic mở AI Chat
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildQuickButton(IconData icon, String label) {
+  // Cập nhật hàm helper để nhận sự kiện GestureDetector
+  Widget _buildQuickButton(
+    IconData icon,
+    String label, {
+    required VoidCallback onTap,
+  }) {
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: _greenColor,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: _greenColor,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: _greenColor.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: Colors.white, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -53,5 +53,11 @@
 	<string>Ứng dụng cần quyền truy cập Camera để quét món ăn.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Ứng dụng cần quyền truy cập Thư viện để chọn ảnh món ăn.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HealthyLife cần quyền truy cập thư viện ảnh để bạn có thể tải lên ảnh đại diện và hóa đơn thanh toán.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>HealthyLife cần quyền truy cập máy ảnh để bạn có thể chụp ảnh đại diện và hóa đơn trực tiếp.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>HealthyLife cần quyền truy cập micro (nếu bạn quay video đơn hàng).</string>
 </dict>
 </plist>
