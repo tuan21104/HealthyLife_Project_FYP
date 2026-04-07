@@ -38,7 +38,7 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       // Phần thân trên sẽ hiển thị màn hình tương ứng với tab được chọn
-      body: SafeArea(child: _pages[_selectedIndex]),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       // Thanh điều hướng bên dưới
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -101,4 +101,3 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-

@@ -15,6 +15,8 @@ class MyHttpOverrides extends HttpOverrides {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PaintingBinding.instance.imageCache.maximumSize = 100;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024;
 
   // Kích hoạt ghi đè HTTP trước khi load app
   HttpOverrides.global = MyHttpOverrides();

@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 class AuthService {
-  static const String myWifiIp = '172.20.10.11';
+  static const String myWifiIp = '192.168.1.18';
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;
@@ -447,8 +446,9 @@ class AuthService {
   // --- HÀM REDEEM MỚI: Nhận đầy đủ Bill và Địa chỉ ---
   static Future<Map<String, dynamic>?> redeemProduct({
     required String productId,
-    required String billUrl,
+    String billUrl = '',
     required String address,
+    int quantity = 1,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -467,6 +467,7 @@ class AuthService {
         body: jsonEncode({
           'userId': userId,
           'productId': productId,
+          'quantity': quantity,
           'billUrl': billUrl, // Đưa link ảnh bill vào đây
           'address': address, // Đưa địa chỉ vào đây
         }),
@@ -489,6 +490,29 @@ class AuthService {
       return {'success': false, 'products': []};
     } catch (e) {
       return {'success': false, 'products': []};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getOrderHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+
+      if (userId == null || userId.isEmpty) {
+        return {'success': false, 'orders': []};
+      }
+
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/shop/history/$userId'))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+
+      return {'success': false, 'orders': []};
+    } catch (e) {
+      return {'success': false, 'orders': []};
     }
   }
 }
