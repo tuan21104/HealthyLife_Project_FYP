@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/auth_service.dart';
+import 'ask_me_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'shop_screen.dart';
 
@@ -471,7 +472,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Icons.auto_awesome_outlined,
           "AI Chat",
           onTap: () {
-            // Logic mở AI Chat
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AskMeScreen()),
+            );
           },
         ),
       ],
