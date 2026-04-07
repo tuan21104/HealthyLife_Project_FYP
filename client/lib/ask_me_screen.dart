@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/auth_service.dart';
 import 'services/ai_chat_service.dart';
 
 class AskMeScreen extends StatefulWidget {
@@ -15,9 +16,11 @@ class _AskMeScreenState extends State<AskMeScreen> {
     model: 'gemini-2.5-flash',
   );
   final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
 
   String? _userId;
+  String _currentUserName = 'You';
   bool _isAiTyping = false;
   bool _isLoadingHistory = true;
 
@@ -32,6 +35,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
   void dispose() {
     _messageController.removeListener(_onInputChanged);
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -49,6 +53,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
       }
 
       _userId = storedUserId;
+      await _resolveCurrentUserName();
 
       if (storedUserId == null || storedUserId.trim().isEmpty) {
         setState(() {
@@ -57,6 +62,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
             ..add(_buildWelcomeMessage());
           _isLoadingHistory = false;
         });
+        _scrollToBottom();
         return;
       }
 
@@ -76,7 +82,9 @@ class _AskMeScreenState extends State<AskMeScreen> {
           )
           .map(
             (Map<String, dynamic> item) => _ChatMessage(
-              sender: item['role'] == 'model' ? 'Healthy life AI' : 'Ali',
+              sender: item['role'] == 'model'
+                  ? 'Healthy life AI'
+                  : _currentUserName,
               text: item['text'].toString(),
               timeLabel: _formatTimeLabelFromTimestamp(item['timestamp']),
               isAi: item['role'] == 'model',
@@ -94,6 +102,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
           );
         _isLoadingHistory = false;
       });
+      _scrollToBottom();
     } catch (_) {
       if (!mounted) {
         return;
@@ -104,7 +113,44 @@ class _AskMeScreenState extends State<AskMeScreen> {
           ..add(_buildWelcomeMessage());
         _isLoadingHistory = false;
       });
+      _scrollToBottom();
     }
+  }
+
+  Future<void> _resolveCurrentUserName() async {
+    try {
+      final dynamic profile = await AuthService.getUserProfile();
+      if (profile is! Map<String, dynamic>) {
+        return;
+      }
+
+      final dynamic user = profile['user'];
+      if (user is! Map<String, dynamic>) {
+        return;
+      }
+
+      final String name = (user['name'] ?? '').toString().trim();
+      if (name.isNotEmpty) {
+        _currentUserName = name;
+      }
+    } catch (_) {
+      // Keep fallback display name.
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) {
+        return;
+      }
+
+      final double maxScroll = _scrollController.position.maxScrollExtent;
+      _scrollController.animateTo(
+        maxScroll,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   _ChatMessage _buildWelcomeMessage() {
@@ -142,7 +188,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
     setState(() {
       _messages.add(
         _ChatMessage(
-          sender: 'Ali',
+          sender: _currentUserName,
           text: text,
           timeLabel: 'Sent ${_currentTimeLabel()}',
           isAi: false,
@@ -151,6 +197,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
       _messageController.clear();
       _isAiTyping = true;
     });
+    _scrollToBottom();
 
     if (_userId != null && _userId!.trim().isNotEmpty) {
       await _aiChatService.saveMessageToDb(_userId!, 'user', text);
@@ -176,6 +223,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
       );
       _isAiTyping = false;
     });
+    _scrollToBottom();
 
     if (_userId != null && _userId!.trim().isNotEmpty) {
       await _aiChatService.saveMessageToDb(_userId!, 'model', aiResponse);
@@ -239,6 +287,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
                       ),
                     )
                   : ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
                       itemCount: _messages.length,
                       itemBuilder: (BuildContext context, int index) {
