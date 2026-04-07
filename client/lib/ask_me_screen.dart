@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/ai_chat_service.dart';
 
 class AskMeScreen extends StatefulWidget {
@@ -14,27 +15,17 @@ class _AskMeScreenState extends State<AskMeScreen> {
     model: 'gemini-2.5-flash',
   );
   final TextEditingController _messageController = TextEditingController();
-  final List<_ChatMessage> _messages = <_ChatMessage>[
-    const _ChatMessage(
-      sender: 'Healthy life AI',
-      text: 'Hello! How can I help you?',
-      timeLabel: '19:00',
-      isAi: true,
-    ),
-    const _ChatMessage(
-      sender: 'Ali',
-      text: 'I was wondering if I can add recipes to my account for myself?',
-      timeLabel: 'Sent 19:01',
-      isAi: false,
-    ),
-  ];
+  final List<_ChatMessage> _messages = <_ChatMessage>[];
 
-  bool _isAiTyping = true;
+  String? _userId;
+  bool _isAiTyping = false;
+  bool _isLoadingHistory = true;
 
   @override
   void initState() {
     super.initState();
     _messageController.addListener(_onInputChanged);
+    _loadChatHistory();
   }
 
   @override
@@ -48,11 +39,105 @@ class _AskMeScreenState extends State<AskMeScreen> {
     setState(() {});
   }
 
+  Future<void> _loadChatHistory() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? storedUserId = prefs.getString('userId');
+
+      if (!mounted) {
+        return;
+      }
+
+      _userId = storedUserId;
+
+      if (storedUserId == null || storedUserId.trim().isEmpty) {
+        setState(() {
+          _messages
+            ..clear()
+            ..add(_buildWelcomeMessage());
+          _isLoadingHistory = false;
+        });
+        return;
+      }
+
+      final List<Map<String, dynamic>> history = await _aiChatService
+          .fetchChatHistory(storedUserId);
+
+      if (!mounted) {
+        return;
+      }
+
+      final List<_ChatMessage> mappedHistory = history
+          .where(
+            (Map<String, dynamic> item) =>
+                item['text'] != null &&
+                item['text'].toString().trim().isNotEmpty &&
+                (item['role'] == 'user' || item['role'] == 'model'),
+          )
+          .map(
+            (Map<String, dynamic> item) => _ChatMessage(
+              sender: item['role'] == 'model' ? 'Healthy life AI' : 'Ali',
+              text: item['text'].toString(),
+              timeLabel: _formatTimeLabelFromTimestamp(item['timestamp']),
+              isAi: item['role'] == 'model',
+            ),
+          )
+          .toList();
+
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(
+            mappedHistory.isEmpty
+                ? <_ChatMessage>[_buildWelcomeMessage()]
+                : mappedHistory,
+          );
+        _isLoadingHistory = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _messages
+          ..clear()
+          ..add(_buildWelcomeMessage());
+        _isLoadingHistory = false;
+      });
+    }
+  }
+
+  _ChatMessage _buildWelcomeMessage() {
+    return _ChatMessage(
+      sender: 'Healthy life AI',
+      text: 'Hello! How can I help you?',
+      timeLabel: _currentTimeLabel(),
+      isAi: true,
+    );
+  }
+
+  List<Map<String, dynamic>> _toHistoryPayload() {
+    return _messages
+        .map(
+          (_ChatMessage message) => <String, dynamic>{
+            'role': message.isAi ? 'model' : 'user',
+            'text': message.text,
+          },
+        )
+        .toList();
+  }
+
   Future<void> _sendMessage() async {
+    if (_isLoadingHistory || _isAiTyping) {
+      return;
+    }
+
     final String text = _messageController.text.trim();
     if (text.isEmpty) {
       return;
     }
+
+    final List<Map<String, dynamic>> historyForContext = _toHistoryPayload();
 
     setState(() {
       _messages.add(
@@ -67,7 +152,14 @@ class _AskMeScreenState extends State<AskMeScreen> {
       _isAiTyping = true;
     });
 
-    final String aiResponse = await _aiChatService.sendMessage(text);
+    if (_userId != null && _userId!.trim().isNotEmpty) {
+      await _aiChatService.saveMessageToDb(_userId!, 'user', text);
+    }
+
+    final String aiResponse = await _aiChatService.sendMessage(
+      text,
+      chatHistory: historyForContext,
+    );
 
     if (!mounted) {
       return;
@@ -84,12 +176,31 @@ class _AskMeScreenState extends State<AskMeScreen> {
       );
       _isAiTyping = false;
     });
+
+    if (_userId != null && _userId!.trim().isNotEmpty) {
+      await _aiChatService.saveMessageToDb(_userId!, 'model', aiResponse);
+    }
   }
 
   String _currentTimeLabel() {
     final DateTime now = DateTime.now();
     final String hour = now.hour.toString().padLeft(2, '0');
     final String minute = now.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _formatTimeLabelFromTimestamp(dynamic timestampRaw) {
+    if (timestampRaw == null) {
+      return _currentTimeLabel();
+    }
+
+    final DateTime? parsed = DateTime.tryParse(timestampRaw.toString());
+    if (parsed == null) {
+      return _currentTimeLabel();
+    }
+
+    final String hour = parsed.hour.toString().padLeft(2, '0');
+    final String minute = parsed.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
 
@@ -121,19 +232,25 @@ class _AskMeScreenState extends State<AskMeScreen> {
         child: Column(
           children: <Widget>[
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
-                itemCount: _messages.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final _ChatMessage message = _messages[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: message.isAi
-                        ? _buildAiMessage(message)
-                        : _buildUserMessage(message),
-                  );
-                },
-              ),
+              child: _isLoadingHistory
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF4CAF50),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
+                      itemCount: _messages.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final _ChatMessage message = _messages[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: message.isAi
+                              ? _buildAiMessage(message)
+                              : _buildUserMessage(message),
+                        );
+                      },
+                    ),
             ),
             if (_isAiTyping)
               const Padding(

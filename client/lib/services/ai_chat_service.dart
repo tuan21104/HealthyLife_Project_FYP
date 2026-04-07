@@ -14,9 +14,44 @@ class AiChatService {
   static const String _temporaryUnavailableMessage =
       'The AI service is currently busy. Please try again in a moment.';
 
+  static const String _backendBaseUrl = 'http://10.0.2.2:3000';
+
   final String _model;
 
   const AiChatService({String model = 'gemini-2.5-flash'}) : _model = model;
+
+  List<Map<String, dynamic>> _buildGeminiContents(
+    String currentMessage,
+    List<Map<String, dynamic>> chatHistory,
+  ) {
+    final List<Map<String, dynamic>> contents = <Map<String, dynamic>>[];
+    final int startIndex = chatHistory.length > 10
+        ? chatHistory.length - 10
+        : 0;
+
+    for (final Map<String, dynamic> message in chatHistory.skip(startIndex)) {
+      final String role = (message['role'] ?? '').toString();
+      final String text = (message['text'] ?? '').toString().trim();
+
+      if ((role == 'user' || role == 'model') && text.isNotEmpty) {
+        contents.add(<String, dynamic>{
+          'role': role,
+          'parts': <Map<String, String>>[
+            <String, String>{'text': text},
+          ],
+        });
+      }
+    }
+
+    contents.add(<String, dynamic>{
+      'role': 'user',
+      'parts': <Map<String, String>>[
+        <String, String>{'text': _buildPrompt(currentMessage)},
+      ],
+    });
+
+    return contents;
+  }
 
   String _buildPrompt(String userMessage) {
     return '''
@@ -47,7 +82,10 @@ $userMessage
     return _fallbackMessage;
   }
 
-  Future<String> sendMessage(String userMessage) async {
+  Future<String> sendMessage(
+    String userMessage, {
+    List<Map<String, dynamic>> chatHistory = const <Map<String, dynamic>>[],
+  }) async {
     final String trimmedMessage = userMessage.trim();
     if (trimmedMessage.isEmpty) {
       return 'Please enter a message first.';
@@ -64,14 +102,7 @@ $userMessage
       );
 
       final Map<String, dynamic> payload = <String, dynamic>{
-        'contents': <Map<String, dynamic>>[
-          <String, dynamic>{
-            'role': 'user',
-            'parts': <Map<String, String>>[
-              <String, String>{'text': _buildPrompt(trimmedMessage)},
-            ],
-          },
-        ],
+        'contents': _buildGeminiContents(trimmedMessage, chatHistory),
       };
 
       final http.Response response = await http
@@ -129,6 +160,93 @@ $userMessage
     } catch (e) {
       print('AiChatService exception: $e');
       return 'AI API exception: $e';
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchChatHistory(String userId) async {
+    final String trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) {
+      return <Map<String, dynamic>>[];
+    }
+
+    try {
+      final Uri uri = Uri.parse(
+        '$_backendBaseUrl/api/chat/${Uri.encodeComponent(trimmedUserId)}',
+      );
+
+      final http.Response response = await http
+          .get(
+            uri,
+            headers: <String, String>{'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        print(
+          'fetchChatHistory error: HTTP ${response.statusCode}, body=${response.body}',
+        );
+        return <Map<String, dynamic>>[];
+      }
+
+      final Map<String, dynamic> data =
+          jsonDecode(response.body) as Map<String, dynamic>;
+
+      final dynamic messagesRaw = data['messages'];
+      if (messagesRaw is! List<dynamic>) {
+        return <Map<String, dynamic>>[];
+      }
+
+      return messagesRaw
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (Map<String, dynamic> message) => <String, dynamic>{
+              'role': (message['role'] ?? '').toString(),
+              'text': (message['text'] ?? '').toString(),
+              'timestamp': message['timestamp'],
+            },
+          )
+          .toList();
+    } catch (e) {
+      print('fetchChatHistory exception: $e');
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<void> saveMessageToDb(String userId, String role, String text) async {
+    final String trimmedUserId = userId.trim();
+    final String trimmedRole = role.trim();
+    final String trimmedText = text.trim();
+
+    if (trimmedUserId.isEmpty || trimmedText.isEmpty) {
+      return;
+    }
+
+    if (trimmedRole != 'user' && trimmedRole != 'model') {
+      return;
+    }
+
+    try {
+      final Uri uri = Uri.parse('$_backendBaseUrl/api/chat/save');
+
+      final http.Response response = await http
+          .post(
+            uri,
+            headers: <String, String>{'Content-Type': 'application/json'},
+            body: jsonEncode(<String, String>{
+              'userId': trimmedUserId,
+              'role': trimmedRole,
+              'text': trimmedText,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        print(
+          'saveMessageToDb error: HTTP ${response.statusCode}, body=${response.body}',
+        );
+      }
+    } catch (e) {
+      print('saveMessageToDb exception: $e');
     }
   }
 }
