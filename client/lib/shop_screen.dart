@@ -52,10 +52,13 @@ class _ShopScreenState extends State<ShopScreen> {
   List<Map<String, dynamic>> _cartItems = [];
   String _lastDeliveredAddress = '';
   double _lastPaidAmount = 0;
+  int _estimatedTimeMins = 30;
   File? _billImage;
   bool _isLoadingOrders = false;
   List<Map<String, dynamic>> _orderHistory = [];
   double _calculatedDistance = 0.0;
+  int _shippingFeeVnd = 0;
+  int _totalPriceVnd = 0;
   bool _isCalculatingShipping = false;
 
   @override
@@ -132,7 +135,13 @@ class _ShopScreenState extends State<ShopScreen> {
 
       if (mounted) {
         setState(() {
-          _calculatedDistance = distance / 1000;
+          final distanceKm = distance / 1000;
+          final shippingFee = (distanceKm * _shippingRatePerKm).round();
+
+          _calculatedDistance = distanceKm;
+          _shippingFeeVnd = shippingFee;
+          _estimatedTimeMins = 15 + (distanceKm * 2).round();
+          _totalPriceVnd = (_cartSubtotal + shippingFee).round();
           _addressController.text = address.trim();
           _isCalculatingShipping = false;
         });
@@ -913,7 +922,7 @@ class _ShopScreenState extends State<ShopScreen> {
     final subtotal = _cartSubtotal;
     final distanceKm = _distanceFromStoreKm;
     final shippingFee = _shippingFee;
-    final total = subtotal + shippingFee;
+    final total = _totalPriceVnd;
 
     return SafeArea(
       child: Column(
@@ -1092,7 +1101,11 @@ class _ShopScreenState extends State<ShopScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            _buildSuccessDetail(Icons.access_time, 'Estimated time', '30mins'),
+            _buildSuccessDetail(
+              Icons.access_time,
+              'Estimated time',
+              '${_estimatedTimeMins} mins',
+            ),
             const SizedBox(height: 12),
             _buildSuccessDetail(
               Icons.location_on_outlined,
@@ -1618,6 +1631,7 @@ class _ShopScreenState extends State<ShopScreen> {
           productId: product['_id'].toString(),
           billUrl: billUrl,
           address: address,
+          distanceKm: _distanceFromStoreKm,
           shippingFee: _shippingFee,
           quantity: quantity,
         );
@@ -1640,9 +1654,10 @@ class _ShopScreenState extends State<ShopScreen> {
 
       setState(() {
         _lastDeliveredAddress = address;
-        _lastPaidAmount = _cartSubtotal + _shippingFee;
+        _lastPaidAmount = _totalPriceVnd.toDouble();
         _cartItems = [];
         _billImage = null;
+        _totalPriceVnd = 0;
         _currentStep = 3;
       });
     } catch (_) {
@@ -1683,6 +1698,8 @@ class _ShopScreenState extends State<ShopScreen> {
       if (openCart) {
         _currentStep = 1;
       }
+
+      _recomputeTotalPrice();
     });
   }
 
@@ -1697,6 +1714,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
     setState(() {
       _cartItems[index]['quantity'] = quantity;
+      _recomputeTotalPrice();
     });
   }
 
@@ -1708,6 +1726,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 '') ==
             productId,
       );
+      _recomputeTotalPrice();
     });
   }
 
@@ -1734,7 +1753,7 @@ class _ShopScreenState extends State<ShopScreen> {
     return ((product['priceVND'] ?? 0) as num).toDouble();
   }
 
-  String _formatVnd(double value) {
+  String _formatVnd(num value) {
     return '${NumberFormat.decimalPattern('vi_VN').format(value.round())} vnđ';
   }
 
@@ -1935,8 +1954,12 @@ class _ShopScreenState extends State<ShopScreen> {
     return _calculatedDistance;
   }
 
-  double get _shippingFee {
-    return _distanceFromStoreKm * _shippingRatePerKm;
+  int get _shippingFee {
+    return _shippingFeeVnd;
+  }
+
+  void _recomputeTotalPrice() {
+    _totalPriceVnd = (_cartSubtotal + _shippingFee).round();
   }
 
   double get _cartSubtotal {

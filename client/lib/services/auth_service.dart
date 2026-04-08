@@ -450,7 +450,8 @@ class AuthService {
     required String address,
     double lat = 0.0,
     double lng = 0.0,
-    required double shippingFee,
+    required int shippingFee,
+    required double distanceKm,
     int quantity = 1,
   }) async {
     try {
@@ -476,6 +477,7 @@ class AuthService {
           'lat': lat,
           'lng': lng,
           'shippingFee': shippingFee,
+          'distanceKm': distanceKm,
         }),
       );
       return jsonDecode(response.body);

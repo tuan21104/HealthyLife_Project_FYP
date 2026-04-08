@@ -6,27 +6,6 @@ const Diary = require('../models/Diary');
 const Order = require('../models/Order');
 const nodemailer = require('nodemailer');
 
-const STORE_COORDINATES = { lat: 21.0285, lng: 105.8542 };
-const SHIPPING_RATE_PER_KM = 5000;
-
-function haversineDistanceKm(lat1, lng1, lat2, lng2) {
-  const toRadians = (degrees) => (degrees * Math.PI) / 180;
-  const earthRadiusKm = 6371;
-
-  const dLat = toRadians(lat2 - lat1);
-  const dLng = toRadians(lng2 - lng1);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return earthRadiusKm * c;
-}
-
 function getMealFieldByHour(hour) {
   if (hour >= 5 && hour < 10) return 'breakfast';
   if (hour >= 10 && hour < 14) return 'lunch';
@@ -76,6 +55,16 @@ router.post('/redeem', async (req, res) => {
   const lngRaw = req.body.lng ?? req.body.coordinates?.lng;
   const lat = Number(latRaw);
   const lng = Number(lngRaw);
+  const distanceKmRaw = Number(req.body.distanceKm);
+  const shippingFeeRaw = Number(req.body.shippingFee);
+  const distanceKm = Number.isFinite(distanceKmRaw)
+    ? Number(distanceKmRaw.toFixed(2))
+    : 0;
+  const shippingFee = Number.isFinite(shippingFeeRaw)
+    ? Math.max(0, Math.round(shippingFeeRaw))
+    : 0;
+  const hasValidCoordinates =
+    Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
   const today = new Date().toISOString().split('T')[0];
 
   try {
@@ -90,18 +79,6 @@ router.post('/redeem', async (req, res) => {
       return res.status(400).json({ success: false, message: "Vui lòng nhập địa chỉ nhận hàng" });
     }
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return res.status(400).json({ success: false, message: 'Thiếu tọa độ giao hàng hợp lệ (lat, lng)' });
-    }
-
-    const distanceKmRaw = haversineDistanceKm(
-      STORE_COORDINATES.lat,
-      STORE_COORDINATES.lng,
-      lat,
-      lng
-    );
-    const distanceKm = Number(distanceKmRaw.toFixed(2));
-    const shippingFee = Math.round(distanceKm * SHIPPING_RATE_PER_KM);
     const productTotalVnd = (product.priceVND || 0) * quantity;
     const totalAmount = productTotalVnd + shippingFee;
 
@@ -146,7 +123,7 @@ router.post('/redeem', async (req, res) => {
         totalCalo: cost,
         address: deliveryAddress,
         deliveryAddress,
-        coordinates: { lat, lng },
+        ...(hasValidCoordinates ? { coordinates: { lat, lng } } : {}),
         distanceKm,
         shippingFee,
         totalAmount,
@@ -167,7 +144,7 @@ router.post('/redeem', async (req, res) => {
         totalCalo: cost,
         address: deliveryAddress,
         deliveryAddress,
-        coordinates: { lat, lng },
+        ...(hasValidCoordinates ? { coordinates: { lat, lng } } : {}),
         distanceKm,
         shippingFee,
         totalAmount,
@@ -194,7 +171,6 @@ router.post('/redeem', async (req, res) => {
           <p><b>Phí giao hàng:</b> ${shippingFee} VNĐ</p>
           <p><b>Tổng thanh toán:</b> ${totalAmount} VNĐ</p>
           <p><b>Địa chỉ nhận:</b> <span style="color: #e74c3c;">${deliveryAddress}</span></p>
-          <p><b>Tọa độ nhận:</b> ${lat}, ${lng}</p>
           ${billUrl ? `<p><b>Ảnh minh chứng thanh toán:</b></p><img src="${billUrl}" width="250" style="border-radius: 8px; border: 1px solid #ddd;"/><br><a href="${billUrl}">Xem ảnh gốc</a>` : '<p><b>Ảnh minh chứng thanh toán:</b> Không đính kèm</p>'}
         </div>
       `
@@ -213,9 +189,7 @@ router.post('/redeem', async (req, res) => {
       delivery: {
         distanceKm,
         shippingFee,
-        totalAmount,
-        storeCoordinates: STORE_COORDINATES,
-        userCoordinates: { lat, lng }
+        totalAmount
       }
     });
   } catch (error) {
