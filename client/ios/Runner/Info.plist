@@ -32,6 +32,8 @@
 	<string>HealthyLife cần quyền truy cập micro (nếu bạn quay video đơn hàng).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>HealthyLife cần quyền truy cập thư viện ảnh để bạn có thể tải lên ảnh đại diện và hóa đơn thanh toán.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HealthyLife cần quyền vị trí để tự động điền địa chỉ giao hàng chính xác cho bạn.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

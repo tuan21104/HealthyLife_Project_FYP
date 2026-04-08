@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class AuthService {
-  static const String myWifiIp = '192.168.1.18';
+  static const String myWifiIp = '172.20.10.11';
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;
@@ -448,6 +448,9 @@ class AuthService {
     required String productId,
     String billUrl = '',
     required String address,
+    double lat = 0.0,
+    double lng = 0.0,
+    required double shippingFee,
     int quantity = 1,
   }) async {
     try {
@@ -468,8 +471,11 @@ class AuthService {
           'userId': userId,
           'productId': productId,
           'quantity': quantity,
-          'billUrl': billUrl, // Đưa link ảnh bill vào đây
-          'address': address, // Đưa địa chỉ vào đây
+          'billUrl': billUrl,
+          'address': address,
+          'lat': lat,
+          'lng': lng,
+          'shippingFee': shippingFee,
         }),
       );
       return jsonDecode(response.body);

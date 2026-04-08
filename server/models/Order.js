@@ -10,9 +10,21 @@ const orderSchema = new mongoose.Schema({
   totalVnd: { type: Number, required: true },
   totalCalo: { type: Number, required: true }, // Số calo bị trừ
   address: { type: String, required: true },
+  deliveryAddress: { type: String, default: '' },
+  coordinates: {
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null }
+  },
+  distanceKm: { type: Number, default: 0 },
+  shippingFee: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 },
   billUrl: { type: String, default: '' },
   mealField: { type: String, default: '' },
-  status: { type: String, default: 'Pending' }, // Pending, Completed
+  status: {
+    type: String,
+    enum: ['pending', 'delivering', 'completed', 'cancelled'],
+    default: 'pending'
+  },
   createdAtText: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });

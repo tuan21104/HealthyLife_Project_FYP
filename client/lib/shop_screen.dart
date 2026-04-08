@@ -2,6 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'dart:io';
 
 import 'services/auth_service.dart';
@@ -19,12 +21,17 @@ class _ShopScreenState extends State<ShopScreen> {
   static const Color _mutedText = Color(0xFF8B949E);
   static const Color _surface = Color(0xFFF7F8F4);
   static const Color _softBorder = Color(0xFFE7ECE2);
-  static const double _deliveryCharge = 30000;
+  static const double _storeLat = 21.0382;
+  static const double _storeLng = 105.7827;
+  static const String _defaultAddress = '51 ngõ 59 đường Phạm Văn Đồng';
+  static const double _shippingRatePerKm = 5000;
 
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _addressController = TextEditingController(
-    text: '49 Pham Van Dong street',
+    text: _defaultAddress,
   );
+  final TextEditingController _addressEditingController =
+      TextEditingController();
 
   final List<Map<String, dynamic>> _categoryTabs = const [
     {'key': 'all', 'label': 'All', 'icon': Icons.apps_rounded},
@@ -48,6 +55,8 @@ class _ShopScreenState extends State<ShopScreen> {
   File? _billImage;
   bool _isLoadingOrders = false;
   List<Map<String, dynamic>> _orderHistory = [];
+  double _calculatedDistance = 0.0;
+  bool _isCalculatingShipping = false;
 
   @override
   void initState() {
@@ -56,12 +65,14 @@ class _ShopScreenState extends State<ShopScreen> {
       setState(() => _searchQuery = _searchController.text.trim());
     });
     _loadData();
+    _calculateShipping(_defaultAddress);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _addressController.dispose();
+    _addressEditingController.dispose();
     super.dispose();
   }
 
@@ -76,6 +87,65 @@ class _ShopScreenState extends State<ShopScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _calculateShipping(String address) async {
+    if (address.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vui lòng nhập địa chỉ giao hàng'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isCalculatingShipping = true);
+
+    try {
+      final List<Location> locations = await locationFromAddress(address);
+
+      if (locations.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Không tìm thấy địa chỉ: $address'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          setState(() => _isCalculatingShipping = false);
+        }
+        return;
+      }
+
+      final Location location = locations.first;
+      final double distance = Geolocator.distanceBetween(
+        _storeLat,
+        _storeLng,
+        location.latitude,
+        location.longitude,
+      );
+
+      if (mounted) {
+        setState(() {
+          _calculatedDistance = distance / 1000;
+          _addressController.text = address.trim();
+          _isCalculatingShipping = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        setState(() => _isCalculatingShipping = false);
       }
     }
   }
@@ -841,7 +911,9 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget _buildCheckoutPage() {
     if (_cartItems.isEmpty) return const SizedBox.shrink();
     final subtotal = _cartSubtotal;
-    final total = subtotal + _deliveryCharge;
+    final distanceKm = _distanceFromStoreKm;
+    final shippingFee = _shippingFee;
+    final total = subtotal + shippingFee;
 
     return SafeArea(
       child: Column(
@@ -858,21 +930,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 _buildCheckoutCard(
                   icon: Icons.location_on_outlined,
                   label: 'Deliver to',
-                  child: TextField(
-                    controller: _addressController,
-                    maxLines: 2,
-                    textCapitalization: TextCapitalization.words,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: _darkText,
-                    ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      isDense: true,
-                      hintText: 'Enter delivery address',
-                    ),
-                  ),
+                  child: _buildDeliveryAddressCard(),
                 ),
                 const SizedBox(height: 14),
                 _buildCheckoutCard(
@@ -891,9 +949,11 @@ class _ShopScreenState extends State<ShopScreen> {
                 _buildSummaryRow('Subtotal', _formatVnd(subtotal)),
                 const SizedBox(height: 10),
                 _buildSummaryRow(
-                  'Delivery Charges',
-                  '+${_formatVnd(_deliveryCharge)}',
+                  'Distance',
+                  '${distanceKm.toStringAsFixed(2)} km',
                 ),
+                const SizedBox(height: 10),
+                _buildSummaryRow('Shipping Fee', '+${_formatVnd(shippingFee)}'),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(height: 1),
@@ -1558,6 +1618,7 @@ class _ShopScreenState extends State<ShopScreen> {
           productId: product['_id'].toString(),
           billUrl: billUrl,
           address: address,
+          shippingFee: _shippingFee,
           quantity: quantity,
         );
 
@@ -1579,7 +1640,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
       setState(() {
         _lastDeliveredAddress = address;
-        _lastPaidAmount = _cartSubtotal + _deliveryCharge;
+        _lastPaidAmount = _cartSubtotal + _shippingFee;
         _cartItems = [];
         _billImage = null;
         _currentStep = 3;
@@ -1744,6 +1805,138 @@ class _ShopScreenState extends State<ShopScreen> {
     setState(() {
       _billImage = File(picked.path);
     });
+  }
+
+  Widget _buildDeliveryAddressCard() {
+    if (_isCalculatingShipping) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: _primaryGreen,
+              ),
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Đang tính toán phí ship...',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _mutedText,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _addressController.text.trim().isEmpty
+              ? 'Chưa có địa chỉ giao hàng'
+              : _addressController.text.trim(),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: _darkText,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextButton.icon(
+          onPressed: _showAddressEditDialog,
+          icon: const Icon(Icons.edit_rounded, size: 18),
+          label: const Text('Chỉnh sửa'),
+          style: TextButton.styleFrom(
+            foregroundColor: _darkText,
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(0, 30),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddressEditDialog() {
+    _addressEditingController.text = _addressController.text;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Chỉnh sửa địa chỉ giao hàng',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: _darkText,
+          ),
+        ),
+        content: TextField(
+          controller: _addressEditingController,
+          maxLines: 2,
+          textCapitalization: TextCapitalization.words,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _darkText,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Nhập địa chỉ giao hàng',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: _softBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: _primaryGreen, width: 2),
+            ),
+            contentPadding: const EdgeInsets.all(12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: _mutedText, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final newAddress = _addressEditingController.text.trim();
+              if (newAddress.isNotEmpty) {
+                Navigator.pop(context);
+                _calculateShipping(newAddress);
+              }
+            },
+            child: const Text(
+              'Xác nhận',
+              style: TextStyle(
+                color: _primaryGreen,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double get _distanceFromStoreKm {
+    return _calculatedDistance;
+  }
+
+  double get _shippingFee {
+    return _distanceFromStoreKm * _shippingRatePerKm;
   }
 
   double get _cartSubtotal {
