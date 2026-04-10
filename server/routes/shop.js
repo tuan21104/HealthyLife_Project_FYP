@@ -6,6 +6,86 @@ const Diary = require('../models/Diary');
 const Order = require('../models/Order');
 const nodemailer = require('nodemailer');
 
+const IMAGE_FALLBACKS = {
+  food:
+    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80',
+  equipment:
+    'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1200&q=80',
+  default:
+    'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1200&q=80',
+};
+
+const IMAGE_CHECK_TIMEOUT_MS = 3500;
+const IMAGE_CHECK_CACHE_TTL_MS = 1000 * 60 * 60 * 6;
+const imageHealthCache = new Map();
+
+function getCategoryFallback(category) {
+  const key = (category || '').toString().toLowerCase();
+  return IMAGE_FALLBACKS[key] || IMAGE_FALLBACKS.default;
+}
+
+function normalizeImageUrl(url) {
+  const raw = (url || '').toString().trim();
+  if (!raw) return '';
+
+  if (raw.includes('images.unsplash.com') && !raw.includes('?')) {
+    return `${raw}?auto=format&fit=crop&w=1200&q=80`;
+  }
+
+  return raw;
+}
+
+function hasFreshCache(url) {
+  const entry = imageHealthCache.get(url);
+  return !!entry && entry.expiresAt > Date.now();
+}
+
+async function isImageUrlReachable(url) {
+  if (!url) return false;
+
+  if (hasFreshCache(url)) {
+    return imageHealthCache.get(url).ok;
+  }
+
+  let ok = false;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), IMAGE_CHECK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'HealthyLife-Image-Checker/1.0',
+      },
+    });
+
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    ok = response.ok && contentType.startsWith('image/');
+  } catch (_) {
+    ok = false;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  imageHealthCache.set(url, {
+    ok,
+    expiresAt: Date.now() + IMAGE_CHECK_CACHE_TTL_MS,
+  });
+
+  return ok;
+}
+
+async function resolveImageUrlOrFallback(imageUrl, category) {
+  const normalized = normalizeImageUrl(imageUrl);
+  const fallback = getCategoryFallback(category);
+
+  if (!normalized) return fallback;
+
+  const reachable = await isImageUrlReachable(normalized);
+  return reachable ? normalized : fallback;
+}
+
 function getMealFieldByHour(hour) {
   if (hour >= 5 && hour < 10) return 'breakfast';
   if (hour >= 10 && hour < 14) return 'lunch';
@@ -26,7 +106,17 @@ const transporter = nodemailer.createTransport({
 router.get('/all', async (req, res) => {
   try {
     const products = await Product.find({});
-    res.json({ success: true, products });
+    const safeProducts = await Promise.all(
+      products.map(async (productDoc) => {
+        const product = productDoc.toObject();
+        product.imageUrl = await resolveImageUrlOrFallback(
+          product.imageUrl,
+          product.category
+        );
+        return product;
+      })
+    );
+    res.json({ success: true, products: safeProducts });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -38,7 +128,18 @@ router.get('/history/:userId', async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(100);
 
-    res.json({ success: true, orders });
+    const safeOrders = await Promise.all(
+      orders.map(async (orderDoc) => {
+        const order = orderDoc.toObject();
+        order.productImageUrl = await resolveImageUrlOrFallback(
+          order.productImageUrl,
+          order.productCategory
+        );
+        return order;
+      })
+    );
+
+    res.json({ success: true, orders: safeOrders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -81,6 +182,10 @@ router.post('/redeem', async (req, res) => {
 
     const productTotalVnd = (product.priceVND || 0) * quantity;
     const totalAmount = productTotalVnd + shippingFee;
+    const safeProductImageUrl = await resolveImageUrlOrFallback(
+      product.imageUrl,
+      product.category
+    );
 
     // 1. Khấu trừ Calo nếu có
     const cost = (product.priceCalo || 0) * quantity; 
@@ -117,7 +222,7 @@ router.post('/redeem', async (req, res) => {
         productId: product._id,
         productName: product.name,
         productCategory: product.category,
-        productImageUrl: product.imageUrl || '',
+        productImageUrl: safeProductImageUrl,
         quantity,
         totalVnd: productTotalVnd,
         totalCalo: cost,
@@ -138,7 +243,7 @@ router.post('/redeem', async (req, res) => {
         productId: product._id,
         productName: product.name,
         productCategory: product.category,
-        productImageUrl: product.imageUrl || '',
+        productImageUrl: safeProductImageUrl,
         quantity,
         totalVnd: productTotalVnd,
         totalCalo: cost,

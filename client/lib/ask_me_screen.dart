@@ -1,6 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'services/auth_service.dart';
 import 'services/ai_chat_service.dart';
 
@@ -15,32 +22,220 @@ class _AskMeScreenState extends State<AskMeScreen> {
   final AiChatService _aiChatService = const AiChatService(
     model: 'gemini-2.5-flash',
   );
+  final ImagePicker _imagePicker = ImagePicker();
+  final stt.SpeechToText _speechToText = stt.SpeechToText();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
+  final List<String> _quickPrompts = const <String>[
+    'Len thuc don giam can 1 tuan',
+    'Che do an Keto la gi?',
+    'Cach tinh luong Calo can thiet',
+    'Goi y bai tap tai nha',
+  ];
 
+  File? _selectedImage;
   String? _userId;
   String _currentUserName = 'You';
+  bool _speechReady = false;
+  bool _isListening = false;
   bool _isAiTyping = false;
   bool _isLoadingHistory = true;
+  bool _dismissQuickPrompts = false;
+  String? _micErrorMessage;
+  StreamSubscription<String>? _aiStreamSubscription;
 
   @override
   void initState() {
     super.initState();
     _messageController.addListener(_onInputChanged);
+    _initializeSpeech();
     _loadChatHistory();
   }
 
   @override
   void dispose() {
     _messageController.removeListener(_onInputChanged);
+    _aiStreamSubscription?.cancel();
+    _speechToText.stop();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  Future<void> _initializeSpeech() async {
+    try {
+      final bool available = await _speechToText.initialize(
+        onStatus: (String status) {
+          if (!mounted) {
+            return;
+          }
+
+          if (status == 'notListening' && _isListening) {
+            setState(() {
+              _isListening = false;
+            });
+          }
+        },
+        onError: (dynamic error) {
+          if (!mounted) {
+            return;
+          }
+
+          setState(() {
+            _isListening = false;
+            _speechReady = false;
+            _micErrorMessage = 'Khong the su dung micro: ${error.toString()}';
+          });
+        },
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _speechReady = available;
+        _micErrorMessage = available
+            ? null
+            : 'Khong the su dung micro. Vui long cap quyen microphone va thu lai.';
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _speechReady = false;
+        _micErrorMessage =
+            'Khong the su dung micro. Vui long cap quyen microphone va thu lai.';
+      });
+    }
+  }
+
   void _onInputChanged() {
     setState(() {});
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    if (_isAiTyping || _isLoadingHistory) {
+      return;
+    }
+
+    try {
+      final XFile? picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (!mounted || picked == null) {
+        return;
+      }
+
+      setState(() {
+        _selectedImage = File(picked.path);
+      });
+    } catch (_) {
+      // Ignore picker errors and keep UI responsive.
+    }
+  }
+
+  void _removeSelectedImage() {
+    if (_selectedImage == null) {
+      return;
+    }
+    setState(() {
+      _selectedImage = null;
+    });
+  }
+
+  Future<void> _sendQuickPrompt(String prompt) async {
+    if (_isLoadingHistory || _isAiTyping) {
+      return;
+    }
+
+    setState(() {
+      _dismissQuickPrompts = true;
+      _messageController.text = prompt;
+      _messageController.selection = TextSelection.collapsed(
+        offset: prompt.length,
+      );
+    });
+
+    await _sendMessage();
+  }
+
+  Future<void> _startVoiceInput() async {
+    if (_isAiTyping || _isLoadingHistory || _isListening) {
+      return;
+    }
+
+    if (!_speechReady) {
+      await _initializeSpeech();
+      if (!_speechReady) {
+        if (!mounted) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _micErrorMessage ??
+                  'Khong the su dung micro. Vui long cap quyen microphone va thu lai.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    try {
+      final bool started = await _speechToText.listen(
+        onResult: (result) {
+          final String spokenText = result.recognizedWords.trim();
+          if (!mounted || spokenText.isEmpty) {
+            return;
+          }
+
+          _messageController.value = TextEditingValue(
+            text: spokenText,
+            selection: TextSelection.collapsed(offset: spokenText.length),
+          );
+        },
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isListening = started;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isListening = false;
+      });
+    }
+  }
+
+  Future<void> _stopVoiceInput() async {
+    if (!_isListening) {
+      return;
+    }
+
+    try {
+      await _speechToText.stop();
+    } catch (_) {
+      // Ignore stop errors.
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isListening = false;
+    });
   }
 
   Future<void> _loadChatHistory() async {
@@ -57,9 +252,8 @@ class _AskMeScreenState extends State<AskMeScreen> {
 
       if (storedUserId == null || storedUserId.trim().isEmpty) {
         setState(() {
-          _messages
-            ..clear()
-            ..add(_buildWelcomeMessage());
+          _messages.clear();
+          _dismissQuickPrompts = false;
           _isLoadingHistory = false;
         });
         _scrollToBottom();
@@ -95,11 +289,8 @@ class _AskMeScreenState extends State<AskMeScreen> {
       setState(() {
         _messages
           ..clear()
-          ..addAll(
-            mappedHistory.isEmpty
-                ? <_ChatMessage>[_buildWelcomeMessage()]
-                : mappedHistory,
-          );
+          ..addAll(mappedHistory);
+        _dismissQuickPrompts = mappedHistory.isNotEmpty;
         _isLoadingHistory = false;
       });
       _scrollToBottom();
@@ -108,9 +299,8 @@ class _AskMeScreenState extends State<AskMeScreen> {
         return;
       }
       setState(() {
-        _messages
-          ..clear()
-          ..add(_buildWelcomeMessage());
+        _messages.clear();
+        _dismissQuickPrompts = false;
         _isLoadingHistory = false;
       });
       _scrollToBottom();
@@ -153,15 +343,6 @@ class _AskMeScreenState extends State<AskMeScreen> {
     });
   }
 
-  _ChatMessage _buildWelcomeMessage() {
-    return _ChatMessage(
-      sender: 'Healthy life AI',
-      text: 'Hello! How can I help you?',
-      timeLabel: _currentTimeLabel(),
-      isAi: true,
-    );
-  }
-
   List<Map<String, dynamic>> _toHistoryPayload() {
     return _messages
         .map(
@@ -179,55 +360,151 @@ class _AskMeScreenState extends State<AskMeScreen> {
     }
 
     final String text = _messageController.text.trim();
-    if (text.isEmpty) {
+    final File? imageToSend = _selectedImage;
+
+    if (text.isEmpty && imageToSend == null) {
       return;
     }
 
     final List<Map<String, dynamic>> historyForContext = _toHistoryPayload();
+    final String displayText = text.isEmpty
+        ? 'Sent an image'
+        : imageToSend == null
+        ? text
+        : '$text\n[Attached image]';
 
     setState(() {
       _messages.add(
         _ChatMessage(
           sender: _currentUserName,
-          text: text,
+          text: displayText,
           timeLabel: 'Sent ${_currentTimeLabel()}',
           isAi: false,
         ),
       );
-      _messageController.clear();
-      _isAiTyping = true;
-    });
-    _scrollToBottom();
-
-    if (_userId != null && _userId!.trim().isNotEmpty) {
-      await _aiChatService.saveMessageToDb(_userId!, 'user', text);
-    }
-
-    final String aiResponse = await _aiChatService.sendMessage(
-      text,
-      chatHistory: historyForContext,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
       _messages.add(
         _ChatMessage(
           sender: 'Healthy life AI',
-          text: aiResponse,
+          text: '',
           timeLabel: _currentTimeLabel(),
           isAi: true,
         ),
       );
-      _isAiTyping = false;
+      _messageController.clear();
+      _selectedImage = null;
+      _isAiTyping = true;
     });
     _scrollToBottom();
 
-    if (_userId != null && _userId!.trim().isNotEmpty) {
-      await _aiChatService.saveMessageToDb(_userId!, 'model', aiResponse);
+    final int aiMessageIndex = _messages.length - 1;
+
+    if (_userId != null && _userId!.trim().isNotEmpty && text.isNotEmpty) {
+      await _aiChatService.saveMessageToDb(_userId!, 'user', text);
     }
+
+    final StringBuffer aiBuffer = StringBuffer();
+    final Completer<void> doneCompleter = Completer<void>();
+
+    await _aiStreamSubscription?.cancel();
+    _aiStreamSubscription = _aiChatService
+        .sendMessage(text, chatHistory: historyForContext, image: imageToSend)
+        .listen(
+          (String chunk) {
+            if (!mounted || chunk.isEmpty) {
+              return;
+            }
+
+            aiBuffer.write(chunk);
+
+            if (aiMessageIndex >= _messages.length) {
+              return;
+            }
+
+            setState(() {
+              final _ChatMessage old = _messages[aiMessageIndex];
+              _messages[aiMessageIndex] = _ChatMessage(
+                sender: old.sender,
+                text: aiBuffer.toString(),
+                timeLabel: old.timeLabel,
+                isAi: true,
+              );
+            });
+            _scrollToBottom();
+          },
+          onError: (_) async {
+            if (!mounted) {
+              if (!doneCompleter.isCompleted) {
+                doneCompleter.complete();
+              }
+              return;
+            }
+
+            final String fallback = aiBuffer.isEmpty
+                ? 'Sorry, I am unable to respond right now.'
+                : aiBuffer.toString();
+
+            setState(() {
+              if (aiMessageIndex < _messages.length) {
+                final _ChatMessage old = _messages[aiMessageIndex];
+                _messages[aiMessageIndex] = _ChatMessage(
+                  sender: old.sender,
+                  text: fallback,
+                  timeLabel: old.timeLabel,
+                  isAi: true,
+                );
+              }
+              _isAiTyping = false;
+            });
+
+            if (_userId != null && _userId!.trim().isNotEmpty) {
+              await _aiChatService.saveMessageToDb(_userId!, 'model', fallback);
+            }
+
+            if (!doneCompleter.isCompleted) {
+              doneCompleter.complete();
+            }
+          },
+          onDone: () async {
+            if (!mounted) {
+              if (!doneCompleter.isCompleted) {
+                doneCompleter.complete();
+              }
+              return;
+            }
+
+            final String finalAiText = aiBuffer.toString().trim().isEmpty
+                ? 'Sorry, I am unable to respond right now. Please try again in a moment.'
+                : aiBuffer.toString();
+
+            setState(() {
+              if (aiMessageIndex < _messages.length) {
+                final _ChatMessage old = _messages[aiMessageIndex];
+                _messages[aiMessageIndex] = _ChatMessage(
+                  sender: old.sender,
+                  text: finalAiText,
+                  timeLabel: old.timeLabel,
+                  isAi: true,
+                );
+              }
+              _isAiTyping = false;
+            });
+
+            if (_userId != null && _userId!.trim().isNotEmpty) {
+              await _aiChatService.saveMessageToDb(
+                _userId!,
+                'model',
+                finalAiText,
+              );
+            }
+
+            if (!doneCompleter.isCompleted) {
+              doneCompleter.complete();
+            }
+          },
+          cancelOnError: true,
+        );
+
+    await doneCompleter.future;
   }
 
   String _currentTimeLabel() {
@@ -254,7 +531,14 @@ class _AskMeScreenState extends State<AskMeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasInput = _messageController.text.trim().isNotEmpty;
+    final bool hasInput =
+        _messageController.text.trim().isNotEmpty || _selectedImage != null;
+    final bool shouldShowMicHint = !hasInput;
+    final bool shouldShowQuickPrompts =
+        !_isLoadingHistory &&
+        !_isAiTyping &&
+        _messages.isEmpty &&
+        !_dismissQuickPrompts;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -295,7 +579,12 @@ class _AskMeScreenState extends State<AskMeScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: message.isAi
-                              ? _buildAiMessage(message)
+                              ? _buildAiMessage(
+                                  message,
+                                  showTypingCursor:
+                                      _isAiTyping &&
+                                      index == _messages.length - 1,
+                                )
                               : _buildUserMessage(message),
                         );
                       },
@@ -309,13 +598,143 @@ class _AskMeScreenState extends State<AskMeScreen> {
                   style: TextStyle(color: Colors.black45, fontSize: 12),
                 ),
               ),
+            if (_selectedImage != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          _selectedImage!,
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: -8,
+                        right: -8,
+                        child: InkWell(
+                          onTap: _removeSelectedImage,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (shouldShowMicHint)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: _isListening
+                      ? Row(
+                          key: const ValueKey<String>('listening_state'),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            TweenAnimationBuilder<double>(
+                              tween: Tween<double>(begin: 0.6, end: 1.0),
+                              duration: const Duration(milliseconds: 650),
+                              curve: Curves.easeInOut,
+                              builder: (_, double opacity, Widget? child) {
+                                return Opacity(opacity: opacity, child: child);
+                              },
+                              onEnd: () {
+                                if (mounted && _isListening) {
+                                  setState(() {});
+                                }
+                              },
+                              child: const Icon(
+                                Icons.graphic_eq,
+                                size: 14,
+                                color: Color(0xFF4CAF50),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Dang nghe... tha tay de dung',
+                              style: TextStyle(
+                                color: Color(0xFF2E7D32),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          key: const ValueKey<String>('idle_state'),
+                          _speechReady
+                              ? 'Nhan giu icon mic de nhap giong noi'
+                              : (_micErrorMessage ??
+                                    'Microphone chua san sang'),
+                          style: const TextStyle(
+                            color: Colors.black45,
+                            fontSize: 12,
+                          ),
+                        ),
+                ),
+              ),
+            if (shouldShowQuickPrompts)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _quickPrompts
+                        .map(
+                          (String prompt) => ActionChip(
+                            onPressed: () {
+                              _sendQuickPrompt(prompt);
+                            },
+                            backgroundColor: const Color(0xFFE8F5E9),
+                            side: const BorderSide(
+                              color: Color(0xFF66BB6A),
+                              width: 1,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            label: Text(
+                              prompt,
+                              style: const TextStyle(
+                                color: Color(0xFF2E7D32),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
             const Divider(height: 1, thickness: 1, color: Color(0xFFE8E8E8)),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Row(
                 children: <Widget>[
                   IconButton(
-                    onPressed: () {},
+                    onPressed: _pickImageFromGallery,
                     icon: const Icon(Icons.attach_file, color: Colors.black54),
                   ),
                   Expanded(
@@ -347,13 +766,67 @@ class _AskMeScreenState extends State<AskMeScreen> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: hasInput ? _sendMessage : () {},
-                    icon: Icon(
-                      hasInput ? Icons.send : Icons.mic_none,
-                      color: Colors.black54,
+                  if (hasInput)
+                    IconButton(
+                      onPressed: _sendMessage,
+                      icon: const Icon(Icons.send, color: Colors.black54),
+                    )
+                  else
+                    GestureDetector(
+                      onLongPressStart: (_) {
+                        _startVoiceInput();
+                      },
+                      onLongPressEnd: (_) {
+                        _stopVoiceInput();
+                      },
+                      onTap: () {
+                        if (_speechReady) {
+                          return;
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _micErrorMessage ??
+                                  'Khong the su dung micro. Vui long cap quyen microphone va thu lai.',
+                            ),
+                          ),
+                        );
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isListening
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFF3F3F3),
+                          border: Border.all(
+                            color: _isListening
+                                ? const Color(0xFF4CAF50)
+                                : const Color(0xFFD9D9D9),
+                            width: _isListening ? 1.4 : 1,
+                          ),
+                          boxShadow: _isListening
+                              ? <BoxShadow>[
+                                  const BoxShadow(
+                                    color: Color(0x664CAF50),
+                                    blurRadius: 12,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : const <BoxShadow>[],
+                        ),
+                        child: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: _isListening
+                              ? const Color(0xFF2E7D32)
+                              : Colors.black54,
+                          size: 20,
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -363,7 +836,10 @@ class _AskMeScreenState extends State<AskMeScreen> {
     );
   }
 
-  Widget _buildAiMessage(_ChatMessage message) {
+  Widget _buildAiMessage(
+    _ChatMessage message, {
+    required bool showTypingCursor,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
@@ -393,16 +869,50 @@ class _AskMeScreenState extends State<AskMeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
-                  message.sender,
-                  style: const TextStyle(
-                    color: Color(0xFF4CAF50),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        message.sender,
+                        style: const TextStyle(
+                          color: Color(0xFF4CAF50),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: message.text),
+                        );
+                        if (!mounted) {
+                          return;
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Đã sao chép!')),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.copy_outlined,
+                        size: 16,
+                        color: Colors.black45,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Copy',
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
-                _buildAiMessageBody(message.text),
+                _buildAiMessageBody(
+                  message.text,
+                  showTypingCursor: showTypingCursor,
+                ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
@@ -418,7 +928,10 @@ class _AskMeScreenState extends State<AskMeScreen> {
     );
   }
 
-  Widget _buildAiMessageBody(String messageText) {
+  Widget _buildAiMessageBody(
+    String messageText, {
+    required bool showTypingCursor,
+  }) {
     final bool isApiError =
         messageText.startsWith('AI API error') ||
         messageText.startsWith('AI API exception');
@@ -437,17 +950,50 @@ class _AskMeScreenState extends State<AskMeScreen> {
       );
     }
 
-    return MarkdownBody(
-      data: messageText,
-      selectable: true,
-      styleSheet: MarkdownStyleSheet(
-        p: const TextStyle(fontSize: 15, color: Colors.black87),
-        strong: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
-        ),
-        blockSpacing: 10,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.72,
+            ),
+            child: MarkdownBody(
+              data: messageText,
+              selectable: true,
+              extensionSet: md.ExtensionSet.gitHubFlavored,
+              styleSheet: MarkdownStyleSheet(
+                p: const TextStyle(fontSize: 15, color: Colors.black87),
+                strong: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                tableHead: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+                tableBody: const TextStyle(fontSize: 13, color: Colors.black87),
+                tableBorder: TableBorder.all(
+                  color: const Color(0xFFDDE7DD),
+                  width: 1,
+                ),
+                tableCellsPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                blockSpacing: 10,
+              ),
+            ),
+          ),
+          if (showTypingCursor) ...<Widget>[
+            const SizedBox(width: 2),
+            const _TypingCursor(),
+          ],
+        ],
       ),
     );
   }
@@ -506,6 +1052,49 @@ class _AskMeScreenState extends State<AskMeScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TypingCursor extends StatefulWidget {
+  const _TypingCursor();
+
+  @override
+  State<_TypingCursor> createState() => _TypingCursorState();
+}
+
+class _TypingCursorState extends State<_TypingCursor>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.25, end: 1.0).animate(_controller),
+      child: const Text(
+        '|',
+        style: TextStyle(
+          color: Color(0xFF4CAF50),
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.0,
+        ),
+      ),
     );
   }
 }

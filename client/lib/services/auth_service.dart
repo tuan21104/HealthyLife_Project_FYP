@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class AuthService {
-  static const String myWifiIp = '172.20.10.11';
+  static const String myWifiIp = '192.168.1.27';
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;

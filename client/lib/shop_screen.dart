@@ -7,6 +7,7 @@ import 'package:geocoding/geocoding.dart';
 import 'dart:io';
 
 import 'services/auth_service.dart';
+import 'main_screen.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -593,7 +594,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       top: Radius.circular(18),
                     ),
                     child: CachedNetworkImage(
-                      imageUrl: product['imageUrl'] ?? '',
+                      imageUrl: _resolveImageUrl(product['imageUrl']),
                       height: 108,
                       width: double.infinity,
                       fit: BoxFit.cover,
@@ -602,13 +603,10 @@ class _ShopScreenState extends State<ShopScreen> {
                         alignment: Alignment.center,
                         child: const CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: const Color(0xFFF0F3EC),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: _mutedText,
-                        ),
+                      errorWidget: (_, __, ___) => _buildImageFallback(
+                        isFood: _isFoodProduct(product),
+                        width: double.infinity,
+                        height: 108,
                       ),
                     ),
                   ),
@@ -669,7 +667,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   top: Radius.circular(20),
                 ),
                 child: CachedNetworkImage(
-                  imageUrl: product['imageUrl'] ?? '',
+                  imageUrl: _resolveImageUrl(product['imageUrl']),
                   width: double.infinity,
                   fit: BoxFit.cover,
                   placeholder: (_, __) => Container(
@@ -677,13 +675,9 @@ class _ShopScreenState extends State<ShopScreen> {
                     alignment: Alignment.center,
                     child: const CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  errorWidget: (_, __, ___) => Container(
-                    color: const Color(0xFFF0F3EC),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: _mutedText,
-                    ),
+                  errorWidget: (_, __, ___) => _buildImageFallback(
+                    isFood: _isFoodProduct(product),
+                    width: double.infinity,
                   ),
                 ),
               ),
@@ -812,7 +806,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(14),
                               child: CachedNetworkImage(
-                                imageUrl: product['imageUrl'] ?? '',
+                                imageUrl: _resolveImageUrl(product['imageUrl']),
                                 width: 92,
                                 height: 92,
                                 fit: BoxFit.cover,
@@ -821,14 +815,13 @@ class _ShopScreenState extends State<ShopScreen> {
                                   height: 92,
                                   color: const Color(0xFFF0F3EC),
                                 ),
-                                errorWidget: (_, __, ___) => Container(
-                                  width: 92,
-                                  height: 92,
-                                  color: const Color(0xFFF0F3EC),
-                                  child: const Icon(
-                                    Icons.image_not_supported_outlined,
-                                  ),
-                                ),
+                                errorWidget: (_, __, ___) =>
+                                    _buildImageFallback(
+                                      isFood: _isFoodProduct(product),
+                                      width: 92,
+                                      height: 92,
+                                      compact: true,
+                                    ),
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -1229,7 +1222,9 @@ class _ShopScreenState extends State<ShopScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(14),
                               child: CachedNetworkImage(
-                                imageUrl: order['productImageUrl'] ?? '',
+                                imageUrl: _resolveImageUrl(
+                                  order['productImageUrl'],
+                                ),
                                 width: 72,
                                 height: 72,
                                 fit: BoxFit.cover,
@@ -1238,12 +1233,13 @@ class _ShopScreenState extends State<ShopScreen> {
                                   height: 72,
                                   color: const Color(0xFFF0F3EC),
                                 ),
-                                errorWidget: (_, __, ___) => Container(
-                                  width: 72,
-                                  height: 72,
-                                  color: const Color(0xFFF0F3EC),
-                                  child: const Icon(Icons.fastfood_outlined),
-                                ),
+                                errorWidget: (_, __, ___) =>
+                                    _buildImageFallback(
+                                      isFood: isFood,
+                                      width: 72,
+                                      height: 72,
+                                      compact: true,
+                                    ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -1562,11 +1558,7 @@ class _ShopScreenState extends State<ShopScreen> {
         elevation: 0,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).maybePop();
-          }
-        },
+        onTap: _navigateFromBottomNav,
         items: const [
           BottomNavigationBarItem(
             icon: Padding(
@@ -1598,6 +1590,13 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _navigateFromBottomNav(int index) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => MainScreen(initialIndex: index)),
+      (route) => false,
     );
   }
 
@@ -1814,6 +1813,37 @@ class _ShopScreenState extends State<ShopScreen> {
 
   bool _isFoodProduct(Map<String, dynamic> product) {
     return product['category']?.toString().toLowerCase() == 'food';
+  }
+
+  String _resolveImageUrl(dynamic value) {
+    final url = value?.toString().trim() ?? '';
+    if (url.isEmpty) return '';
+
+    // Some legacy Unsplash URLs in DB miss query params and fail intermittently.
+    if (url.contains('images.unsplash.com') && !url.contains('?')) {
+      return '$url?auto=format&fit=crop&w=1000&q=80';
+    }
+
+    return url;
+  }
+
+  Widget _buildImageFallback({
+    required bool isFood,
+    double? width,
+    double? height,
+    bool compact = false,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      color: const Color(0xFFF0F3EC),
+      alignment: Alignment.center,
+      child: Icon(
+        isFood ? Icons.restaurant_menu_rounded : Icons.fitness_center_rounded,
+        size: compact ? 22 : 30,
+        color: _mutedText,
+      ),
+    );
   }
 
   Future<void> _pickBillImage() async {

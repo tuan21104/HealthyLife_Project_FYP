@@ -26,6 +26,7 @@ class AiChatService {
   List<Map<String, dynamic>> _buildGeminiContents(
     String currentMessage,
     List<Map<String, dynamic>> chatHistory,
+    Map<String, dynamic>? imagePart,
   ) {
     final List<Map<String, dynamic>> contents = <Map<String, dynamic>>[];
     final int startIndex = chatHistory.length > 10
@@ -46,23 +47,78 @@ class AiChatService {
       }
     }
 
-    contents.add(<String, dynamic>{
-      'role': 'user',
-      'parts': <Map<String, String>>[
-        <String, String>{'text': _buildPrompt(currentMessage)},
-      ],
-    });
+    final List<Map<String, dynamic>> currentParts = <Map<String, dynamic>>[
+      <String, String>{
+        'text': _buildPrompt(currentMessage, hasImage: imagePart != null),
+      },
+    ];
+
+    if (imagePart != null) {
+      currentParts.add(imagePart);
+    }
+
+    contents.add(<String, dynamic>{'role': 'user', 'parts': currentParts});
 
     return contents;
   }
 
-  String _buildPrompt(String userMessage) {
+  String _buildPrompt(String userMessage, {required bool hasImage}) {
+    final String normalizedMessage = userMessage.trim();
+    final String messageForPrompt = normalizedMessage.isEmpty && hasImage
+        ? 'Please analyze the attached image and provide health or nutrition insights.'
+        : normalizedMessage;
+
     return '''
 $system_prompt
 
 User message:
-$userMessage
+$messageForPrompt
 ''';
+  }
+
+  String _detectImageMimeType(String path) {
+    final String lowerPath = path.toLowerCase();
+    if (lowerPath.endsWith('.png')) {
+      return 'image/png';
+    }
+    if (lowerPath.endsWith('.webp')) {
+      return 'image/webp';
+    }
+    if (lowerPath.endsWith('.gif')) {
+      return 'image/gif';
+    }
+    if (lowerPath.endsWith('.bmp')) {
+      return 'image/bmp';
+    }
+    if (lowerPath.endsWith('.heic')) {
+      return 'image/heic';
+    }
+    if (lowerPath.endsWith('.heif')) {
+      return 'image/heif';
+    }
+    return 'image/jpeg';
+  }
+
+  Future<Map<String, dynamic>?> _buildInlineImagePart(File image) async {
+    final bool exists = await image.exists();
+    if (!exists) {
+      return null;
+    }
+
+    final List<int> imageBytes = await image.readAsBytes();
+    if (imageBytes.isEmpty) {
+      return null;
+    }
+
+    final String mimeType = _detectImageMimeType(image.path);
+    final String encodedImage = base64Encode(imageBytes);
+
+    return <String, dynamic>{
+      'inlineData': <String, String>{
+        'mimeType': mimeType,
+        'data': encodedImage,
+      },
+    };
   }
 
   String _buildErrorMessage(int statusCode, String body) {
@@ -103,42 +159,165 @@ $userMessage
     return const Duration(seconds: 4);
   }
 
-  Future<String> sendMessage(
+  Map<String, dynamic> _parseSseDataEvent(String rawData) {
+    final String trimmed = rawData.trim();
+    if (trimmed.isEmpty || trimmed == '[DONE]') {
+      return <String, dynamic>{'done': true};
+    }
+
+    try {
+      final dynamic decoded = jsonDecode(trimmed);
+      if (decoded is! Map<String, dynamic>) {
+        return <String, dynamic>{'text': ''};
+      }
+
+      final dynamic errorRaw = decoded['error'];
+      if (errorRaw is Map<String, dynamic>) {
+        final int errorCode = (errorRaw['code'] is int)
+            ? errorRaw['code'] as int
+            : 500;
+        return <String, dynamic>{
+          'errorCode': errorCode,
+          'errorBody': jsonEncode(errorRaw),
+        };
+      }
+
+      final List<dynamic>? candidates = decoded['candidates'] as List<dynamic>?;
+      if (candidates == null || candidates.isEmpty) {
+        return <String, dynamic>{'text': ''};
+      }
+
+      final Map<String, dynamic>? firstCandidate =
+          candidates.first as Map<String, dynamic>?;
+      final Map<String, dynamic>? content =
+          firstCandidate?['content'] as Map<String, dynamic>?;
+      final List<dynamic>? parts = content?['parts'] as List<dynamic>?;
+      if (parts == null || parts.isEmpty) {
+        return <String, dynamic>{'text': ''};
+      }
+
+      final String text = parts
+          .whereType<Map<String, dynamic>>()
+          .map((Map<String, dynamic> part) => (part['text'] ?? '').toString())
+          .where((String value) => value.isNotEmpty)
+          .join();
+
+      return <String, dynamic>{'text': text};
+    } catch (_) {
+      return <String, dynamic>{'text': ''};
+    }
+  }
+
+  Stream<String> _streamSseText(http.StreamedResponse response) async* {
+    String eventBuffer = '';
+
+    await for (final String line
+        in response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())) {
+      if (line.isEmpty) {
+        if (eventBuffer.isNotEmpty) {
+          final Map<String, dynamic> event = _parseSseDataEvent(eventBuffer);
+          final int? errorCode = event['errorCode'] as int?;
+          if (errorCode != null) {
+            yield _buildErrorMessage(
+              errorCode,
+              (event['errorBody'] ?? '').toString(),
+            );
+            return;
+          }
+
+          final String chunkText = (event['text'] ?? '').toString();
+          if (chunkText.isNotEmpty) {
+            yield chunkText;
+          }
+        }
+
+        eventBuffer = '';
+        continue;
+      }
+
+      if (line.startsWith('data:')) {
+        final String dataLine = line.substring(5).trimLeft();
+        eventBuffer = eventBuffer.isEmpty
+            ? dataLine
+            : '$eventBuffer\n$dataLine';
+      }
+    }
+
+    if (eventBuffer.isNotEmpty) {
+      final Map<String, dynamic> event = _parseSseDataEvent(eventBuffer);
+      final int? errorCode = event['errorCode'] as int?;
+      if (errorCode != null) {
+        yield _buildErrorMessage(
+          errorCode,
+          (event['errorBody'] ?? '').toString(),
+        );
+        return;
+      }
+
+      final String chunkText = (event['text'] ?? '').toString();
+      if (chunkText.isNotEmpty) {
+        yield chunkText;
+      }
+    }
+  }
+
+  Stream<String> sendMessage(
     String userMessage, {
     List<Map<String, dynamic>> chatHistory = const <Map<String, dynamic>>[],
-  }) async {
+    File? image,
+  }) async* {
     final String trimmedMessage = userMessage.trim();
-    if (trimmedMessage.isEmpty) {
-      return 'Please enter a message first.';
+    if (trimmedMessage.isEmpty && image == null) {
+      yield 'Please enter a message or attach an image first.';
+      return;
     }
 
     final String? apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      return _fallbackMessage;
+      yield _fallbackMessage;
+      return;
+    }
+
+    Map<String, dynamic>? imagePart;
+    if (image != null) {
+      try {
+        imagePart = await _buildInlineImagePart(image);
+      } catch (e) {
+        print('AiChatService image conversion error: $e');
+        yield 'Could not process the selected image. Please try another image.';
+        return;
+      }
+
+      if (imagePart == null) {
+        yield 'Could not process the selected image. Please try another image.';
+        return;
+      }
     }
 
     final Uri uri = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1/models/$_model:generateContent?key=$apiKey',
+      'https://generativelanguage.googleapis.com/v1beta/models/$_model:streamGenerateContent?alt=sse&key=$apiKey',
     );
 
     final Map<String, dynamic> payload = <String, dynamic>{
-      'contents': _buildGeminiContents(trimmedMessage, chatHistory),
+      'contents': _buildGeminiContents(trimmedMessage, chatHistory, imagePart),
     };
 
     for (int attempt = 1; attempt <= _maxRetryAttempts; attempt++) {
+      final http.Client client = http.Client();
       try {
-        final http.Response response = await http
-            .post(
-              uri,
-              headers: <String, String>{'Content-Type': 'application/json'},
-              body: jsonEncode(payload),
-            )
+        final http.Request request = http.Request('POST', uri)
+          ..headers['Content-Type'] = 'application/json'
+          ..body = jsonEncode(payload);
+
+        final http.StreamedResponse response = await client
+            .send(request)
             .timeout(const Duration(seconds: 25));
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-          print(
-            'AiChatService error: HTTP ${response.statusCode}, body=${response.body}',
-          );
+          final String body = await response.stream.bytesToString();
+          print('AiChatService error: HTTP ${response.statusCode}, body=$body');
 
           if (_isRetriableStatusCode(response.statusCode) &&
               attempt < _maxRetryAttempts) {
@@ -146,76 +325,49 @@ $userMessage
             continue;
           }
 
-          return _buildErrorMessage(response.statusCode, response.body);
+          yield _buildErrorMessage(response.statusCode, body);
+          return;
         }
 
-        final Map<String, dynamic> data =
-            jsonDecode(response.body) as Map<String, dynamic>;
-
-        final List<dynamic>? candidates = data['candidates'] as List<dynamic>?;
-        if (candidates == null || candidates.isEmpty) {
-          final dynamic errorRaw = data['error'];
-          if (errorRaw is Map<String, dynamic>) {
-            final int errorCode = (errorRaw['code'] is int)
-                ? errorRaw['code'] as int
-                : response.statusCode;
-            if (_isRetriableStatusCode(errorCode) &&
-                attempt < _maxRetryAttempts) {
-              await Future.delayed(_retryDelayForAttempt(attempt));
-              continue;
-            }
-            return _buildErrorMessage(errorCode, response.body);
+        bool hasStreamedAnyChunk = false;
+        await for (final String chunkText in _streamSseText(response)) {
+          if (chunkText.isEmpty) {
+            continue;
           }
-
-          return _buildErrorMessage(response.statusCode, response.body);
+          hasStreamedAnyChunk = true;
+          yield chunkText;
         }
 
-        final Map<String, dynamic>? firstCandidate =
-            candidates.first as Map<String, dynamic>?;
-        final Map<String, dynamic>? content =
-            firstCandidate?['content'] as Map<String, dynamic>?;
-        final List<dynamic>? parts = content?['parts'] as List<dynamic>?;
-
-        if (parts == null || parts.isEmpty) {
-          return _buildErrorMessage(
-            response.statusCode,
-            'Response did not contain any text parts.',
-          );
+        if (!hasStreamedAnyChunk) {
+          yield _fallbackMessage;
         }
-
-        final Map<String, dynamic>? firstPart =
-            parts.first as Map<String, dynamic>?;
-        final String? text = firstPart?['text'] as String?;
-
-        if (text == null || text.trim().isEmpty) {
-          return _buildErrorMessage(
-            response.statusCode,
-            'Response text was empty.',
-          );
-        }
-
-        return text.trim();
+        return;
       } on TimeoutException catch (e) {
         print('AiChatService timeout (attempt $attempt): $e');
         if (attempt < _maxRetryAttempts) {
           await Future.delayed(_retryDelayForAttempt(attempt));
           continue;
         }
-        return _temporaryUnavailableMessage;
+        yield _temporaryUnavailableMessage;
+        return;
       } on SocketException catch (e) {
         print('AiChatService socket exception (attempt $attempt): $e');
         if (attempt < _maxRetryAttempts) {
           await Future.delayed(_retryDelayForAttempt(attempt));
           continue;
         }
-        return _fallbackMessage;
+        yield _fallbackMessage;
+        return;
       } catch (e) {
         print('AiChatService exception: $e');
-        return 'AI API exception: $e';
+        yield 'AI API exception: $e';
+        return;
+      } finally {
+        client.close();
       }
     }
 
-    return _temporaryUnavailableMessage;
+    yield _temporaryUnavailableMessage;
   }
 
   Future<List<Map<String, dynamic>>> fetchChatHistory(String userId) async {
