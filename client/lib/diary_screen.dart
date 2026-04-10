@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'food_search_screen.dart';
 import 'services/auth_service.dart';
+import 'modal_effects.dart';
+import 'animation_presets.dart';
 
 class DiaryScreen extends StatefulWidget {
   final double initialCalo;
@@ -183,7 +185,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
       text: oldAmountStr,
     );
 
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -358,7 +360,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
     TextEditingController controller = TextEditingController(
       text: currentValue.toInt().toString(),
     );
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -438,19 +440,35 @@ class _DiaryScreenState extends State<DiaryScreen> {
               _buildDateSelector(),
               const SizedBox(height: 20),
 
-              _buildMealSection("Breakfast", _breakfastFoods, _greenColor),
+              _buildMealSection(
+                "Breakfast",
+                _breakfastFoods,
+                _greenColor,
+              ).withStagger(0),
               const SizedBox(height: 12),
-              _buildMealSection("Lunch", _lunchFoods, _greenColor),
+              _buildMealSection(
+                "Lunch",
+                _lunchFoods,
+                _greenColor,
+              ).withStagger(1),
               const SizedBox(height: 12),
               _buildMealSection(
                 "Exercise",
                 _exerciseList,
                 _blueGreyColor,
-              ), // Đã truyền list bài tập
+              ).withStagger(2), // Đã truyền list bài tập
               const SizedBox(height: 12),
-              _buildMealSection("Snack", _snackFoods, _greenColor),
+              _buildMealSection(
+                "Snack",
+                _snackFoods,
+                _greenColor,
+              ).withStagger(3),
               const SizedBox(height: 12),
-              _buildMealSection("Dinner", _dinnerFoods, _greenColor),
+              _buildMealSection(
+                "Dinner",
+                _dinnerFoods,
+                _greenColor,
+              ).withStagger(4),
 
               const SizedBox(height: 40),
             ],
@@ -921,7 +939,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                               ),
                             ),
                           ),
-                        );
+                        ).withStagger(index, beginY: 0.12);
                       }),
                     ],
                   ),

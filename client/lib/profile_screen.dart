@@ -4,7 +4,9 @@ import 'services/auth_service.dart';
 import 'login_screen.dart';
 import 'edit_profile_screen.dart';
 import 'user_info_step1_screen.dart';
-import 'package:cached_network_image/cached_network_image.dart'; 
+import 'package:cached_network_image/cached_network_image.dart';
+import 'modal_effects.dart';
+import 'animation_presets.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -119,32 +121,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildProfileRow(
                       "Name:",
                       _userData?['name'] ?? "Chưa cập nhật",
-                    ),
+                    ).withStagger(0),
                     _buildProfileRow(
                       "ID:",
                       _userData?['_id']?.toString().substring(0, 8) ??
                           "Chưa cập nhật",
-                    ),
+                    ).withStagger(1),
                     _buildProfileRow(
                       "Email:",
                       _userData?['email'] ?? "Chưa cập nhật",
-                    ),
+                    ).withStagger(2),
                     _buildProfileRow(
                       "Gender:",
                       _userData?['gender'] ?? "Chưa cập nhật",
-                    ),
+                    ).withStagger(3),
                     _buildProfileRow(
                       "Weight:",
                       _userData?['weight'] != null
                           ? "${_userData!['weight']} Kg"
                           : "Chưa cập nhật",
-                    ),
+                    ).withStagger(4),
                     _buildProfileRow(
                       "Height:",
                       _userData?['height'] != null
                           ? "${_userData!['height']} Cm"
                           : "Chưa cập nhật",
-                    ),
+                    ).withStagger(5),
 
                     const SizedBox(height: 40),
 
@@ -184,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                    ),
+                    ).withStagger(6),
 
                     const SizedBox(height: 16),
 
@@ -209,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                    ),
+                    ).withStagger(7),
 
                     const SizedBox(height: 16),
 
@@ -234,7 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                    ),
+                    ).withStagger(8),
 
                     const SizedBox(height: 40),
                   ],
@@ -282,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showChangeGoalConfirmDialog(BuildContext context) {
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(

@@ -8,6 +8,8 @@ import 'dart:io';
 
 import 'services/auth_service.dart';
 import 'main_screen.dart';
+import 'modal_effects.dart';
+import 'animation_presets.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -244,7 +246,7 @@ class _ShopScreenState extends State<ShopScreen> {
                         ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final product = _visibleProducts[index];
-                      return _buildProductCard(product);
+                      return _buildProductCard(product).withStagger(index);
                     }, childCount: _visibleProducts.length),
                   ),
                 ),
@@ -561,7 +563,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 ],
               ),
             ),
-          );
+          ).withStagger(index, beginY: 0.1);
         },
       ),
     );
@@ -636,7 +638,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 ],
               ),
             ),
-          );
+          ).withStagger(index, beginY: 0.1);
         },
       ),
     );
@@ -894,7 +896,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                           ],
                         ),
-                      );
+                      ).withStagger(index);
                     },
                   ),
           ),
@@ -1331,7 +1333,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                           ],
                         ),
-                      );
+                      ).withStagger(index);
                     },
                   ),
           ),
@@ -1916,7 +1918,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
   void _showAddressEditDialog() {
     _addressEditingController.text = _addressController.text;
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (BuildContext context) => AlertDialog(
         backgroundColor: Colors.white,

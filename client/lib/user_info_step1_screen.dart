@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'user_info_step2_screen.dart';
 import 'landing_screen.dart';
+import 'modal_effects.dart';
 
 class UserInfoStep1Screen extends StatefulWidget {
   final String email;
@@ -22,12 +23,17 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
     "Losing Weight",
     "Gaining Weight",
     "Keeping Weight",
-    "Being Fit"
+    "Being Fit",
   ];
 
   void _handleNext() async {
-    if (_nameController.text.isEmpty || _selectedGender == null || _budgetController.text.isEmpty || _selectedGoal == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Vui lòng điền đầy đủ thông tin *")));
+    if (_nameController.text.isEmpty ||
+        _selectedGender == null ||
+        _budgetController.text.isEmpty ||
+        _selectedGoal == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Vui lòng điền đầy đủ thông tin *")),
+      );
       return;
     }
 
@@ -47,7 +53,12 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi lưu dữ liệu"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Lỗi lưu dữ liệu"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -61,27 +72,35 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.grey),
           onPressed: () {
-            // Dùng pushReplacement để chuyển sang LandingScreen 
+            // Dùng pushReplacement để chuyển sang LandingScreen
             // và không cho phép bấm "Back" trên đt quay lại màn hình nhập Info này nữa
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => const LandingScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const LandingScreen()),
             );
           },
         ),
       ),
-      
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Your Info", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+              const Text(
+                "Your Info",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
               const SizedBox(height: 8),
-              const Text("Step 1/2", style: TextStyle(fontSize: 16, color: Colors.grey)),
+              const Text(
+                "Step 1/2",
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
               const SizedBox(height: 30),
 
               _buildTextField(controller: _nameController, hint: "Your Name *"),
@@ -89,16 +108,25 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
 
               GestureDetector(
                 onTap: () => _showGenderDialog(),
-                child: _buildFakeDropdown(text: _selectedGender ?? "Your Gender *"),
+                child: _buildFakeDropdown(
+                  text: _selectedGender ?? "Your Gender *",
+                ),
               ),
               const SizedBox(height: 20),
 
-              _buildTextField(controller: _budgetController, hint: "Daily budget *", isNumber: true),
+              _buildTextField(
+                controller: _budgetController,
+                hint: "Daily budget *",
+                isNumber: true,
+              ),
               const SizedBox(height: 20),
 
               GestureDetector(
                 onTap: () => _showGoalDialog(),
-                child: _buildFakeDropdown(text: _selectedGoal ?? "You're here for", isGoal: true),
+                child: _buildFakeDropdown(
+                  text: _selectedGoal ?? "You're here for",
+                  isGoal: true,
+                ),
               ),
 
               const SizedBox(height: 40),
@@ -110,10 +138,19 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
                   onPressed: _handleNext,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
-                  child: const Text("Next", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: const Text(
+                    "Next",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -123,16 +160,29 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String hint, bool isNumber = false}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    bool isNumber = false,
+  }) {
     return TextField(
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey[400]),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
       ),
     );
   }
@@ -147,48 +197,74 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(text, style: TextStyle(color: text.contains("*") || text.contains("here for") ? Colors.grey[400] : Colors.black, fontSize: 16)),
-          if (isGoal) const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey)
+          Text(
+            text,
+            style: TextStyle(
+              color: text.contains("*") || text.contains("here for")
+                  ? Colors.grey[400]
+                  : Colors.black,
+              fontSize: 16,
+            ),
+          ),
+          if (isGoal)
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         ],
       ),
     );
   }
 
   void _showGoalDialog() {
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("You're here for", style: TextStyle(fontWeight: FontWeight.bold)),
-              IconButton(icon: const Icon(Icons.close, color: Colors.grey), onPressed: () => Navigator.pop(context))
+              const Text(
+                "You're here for",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey),
+                onPressed: () => Navigator.pop(context),
+              ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: _goals.map((goal) => RadioListTile<String>(
-              title: Text(goal),
-              value: goal,
-              groupValue: _selectedGoal,
-              activeColor: const Color(0xFF4CAF50),
-              onChanged: (value) {
-                setState(() => _selectedGoal = value);
-                Navigator.pop(context);
-              },
-            )).toList(),
+            children: _goals
+                .map(
+                  (goal) => RadioListTile<String>(
+                    title: Text(goal),
+                    value: goal,
+                    groupValue: _selectedGoal,
+                    activeColor: const Color(0xFF4CAF50),
+                    onChanged: (value) {
+                      setState(() => _selectedGoal = value);
+                      Navigator.pop(context);
+                    },
+                  ),
+                )
+                .toList(),
           ),
           actions: [
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 onPressed: () => Navigator.pop(context),
                 child: const Text("OK", style: TextStyle(color: Colors.white)),
               ),
-            )
+            ),
           ],
         );
       },
@@ -196,21 +272,27 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
   }
 
   void _showGenderDialog() {
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text("Select Gender"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: ["Male", "Female", "Other"].map((g) => ListTile(
-              title: Text(g),
-              onTap: () {
-                setState(() => _selectedGender = g);
-                Navigator.pop(context);
-              },
-            )).toList(),
+            children: ["Male", "Female", "Other"]
+                .map(
+                  (g) => ListTile(
+                    title: Text(g),
+                    onTap: () {
+                      setState(() => _selectedGender = g);
+                      Navigator.pop(context);
+                    },
+                  ),
+                )
+                .toList(),
           ),
         );
       },

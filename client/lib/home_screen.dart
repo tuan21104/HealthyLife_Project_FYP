@@ -6,6 +6,7 @@ import 'services/auth_service.dart';
 import 'ask_me_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'shop_screen.dart';
+import 'custom_page_route.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -455,10 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
           "Shopping",
           onTap: () {
             // Chuyển sang trang Shop
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ShopScreen()),
-            );
+            Navigator.push(context, CustomPageRoute(page: const ShopScreen()));
           },
         ),
         _buildQuickButton(
@@ -472,10 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Icons.auto_awesome_outlined,
           "AI Chat",
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AskMeScreen()),
-            );
+            Navigator.push(context, CustomPageRoute(page: const AskMeScreen()));
           },
         ),
       ],

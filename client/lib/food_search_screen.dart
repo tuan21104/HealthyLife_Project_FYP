@@ -5,6 +5,7 @@ import 'food_detail_screen.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'services/ai_service.dart';
+import 'modal_effects.dart';
 
 class FoodSearchScreen extends StatefulWidget {
   final String mealType;
@@ -54,7 +55,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
       // --------------------
 
       // 1. Hiện vòng xoay chờ đợi AI phân tích
-      showDialog(
+      ModalEffects.showScaleFadeDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
@@ -178,12 +179,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
     );
     String currentImageUrl = existingFood['imageUrl'] ?? "";
 
-    showModalBottomSheet(
+    ModalEffects.showAppBottomSheet(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      topRadius: 28,
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
@@ -390,7 +388,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
       text: prefillData?['carbs']?.toString() ?? "",
     );
 
-    showModalBottomSheet(
+    ModalEffects.showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -643,7 +641,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                 child: GestureDetector(
                   onTap: () async {
                     // Menu đổi ảnh mới
-                    showModalBottomSheet(
+                    ModalEffects.showAppBottomSheet(
                       context: context,
                       builder: (context) => SafeArea(
                         child: Column(
@@ -719,7 +717,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
             GestureDetector(
               onTap: () {
                 // Menu chọn ảnh
-                showModalBottomSheet(
+                ModalEffects.showAppBottomSheet(
                   context: context,
                   builder: (context) => SafeArea(
                     child: Column(
@@ -837,7 +835,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
     final descCtrl = TextEditingController();
     final caloCtrl = TextEditingController();
 
-    showModalBottomSheet(
+    ModalEffects.showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -962,7 +960,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
     // 1. CHỐT REFERENCE CỦA MESSENGER TỪ MÀN HÌNH GỐC (TRƯỚC KHI MỞ DIALOG)
     final messenger = ScaffoldMessenger.of(context);
 
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       // 2. Đổi tên biến này thành dialogContext để không bị nhầm lẫn với context của màn hình
       builder: (dialogContext) => AlertDialog(
@@ -1059,7 +1057,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     // Menu chọn ảnh mớm data cho AI
-                    showModalBottomSheet(
+                    ModalEffects.showAppBottomSheet(
                       context: context,
                       builder: (context) => SafeArea(
                         child: Column(

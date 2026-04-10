@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'services/auth_service.dart';
+import 'modal_effects.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -392,7 +393,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // --- DIALOGS ---
   void _showProfilePictureDialog() {
     _selectedPicOption = 0;
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -446,7 +447,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showAvatarGridDialog() {
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Choose Avatar"),
@@ -476,7 +477,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showActivityDialog() {
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Activity Level"),
@@ -499,7 +500,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showGenderDialog() {
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Select Gender"),

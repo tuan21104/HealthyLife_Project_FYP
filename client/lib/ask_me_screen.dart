@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'animation_presets.dart';
 import 'services/auth_service.dart';
 import 'services/ai_chat_service.dart';
 
@@ -586,7 +587,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
                                       index == _messages.length - 1,
                                 )
                               : _buildUserMessage(message),
-                        );
+                        ).withStagger(index, beginY: 0.14);
                       },
                     ),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'congratulations_screen.dart';
 import 'services/auth_service.dart';
+import 'modal_effects.dart';
 
 class TargetWeightScreen extends StatefulWidget {
   final double currentHeight;
@@ -109,7 +110,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
 
   // --- HÀM POP-UP CẢNH BÁO ---
   void _showWarningDialog(double kgPerWeek, VoidCallback onContinue) {
-    showDialog(
+    ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
