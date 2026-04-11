@@ -50,6 +50,10 @@ const UserSchema = new mongoose.Schema({
         type: Number, 
         default: 0
     },
+    monthlyBudget: {
+        type: Number,
+        default: 10000000
+    },
     avatarUrl: { // Thêm trường avatarUrl
         type: String,
         default: ''

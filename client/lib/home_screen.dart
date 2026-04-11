@@ -7,6 +7,7 @@ import 'ask_me_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'shop_screen.dart';
 import 'custom_page_route.dart';
+import 'expense_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -463,7 +464,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Icons.account_balance_wallet_outlined,
           "Add Expense",
           onTap: () {
-            // Logic thêm chi tiêu
+            Navigator.push(
+              context,
+              CustomPageRoute(page: const ExpenseScreen()),
+            );
           },
         ),
         _buildQuickButton(

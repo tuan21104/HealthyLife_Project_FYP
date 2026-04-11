@@ -20,9 +20,11 @@ app.use('/api/user-foods', require('./routes/userFood'));
 app.use('/api/recipes', require('./routes/recipe'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/users', require('./routes/user'));
+app.use('/api/user', require('./routes/user'));
 app.use('/api/statistics', require('./routes/statistics'));
 app.use('/api/shop', require('./routes/shop'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/expense', require('./routes/expense'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

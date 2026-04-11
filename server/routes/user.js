@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const User = require('../models/User');
 
 // 1. API LẤY THÔNG TIN PROFILE
@@ -42,6 +43,37 @@ router.put('/update', async (req, res) => {
   } catch (error) {
     console.error("==== 💥 LỖI SERVER KHI UPDATE:", error.message);
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. API CẬP NHẬT NGÂN SÁCH THÁNG
+router.put('/:userId/budget', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newBudget } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'userId không hợp lệ' });
+    }
+
+    const parsedBudget = Number(newBudget);
+    if (!Number.isFinite(parsedBudget) || parsedBudget < 0) {
+      return res.status(400).json({ success: false, message: 'newBudget phải là số không âm' });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { monthlyBudget: parsedBudget },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    return res.status(200).json({ success: true, user: updatedUser });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 });
 
