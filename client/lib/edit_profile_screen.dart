@@ -392,57 +392,91 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   // --- DIALOGS ---
   void _showProfilePictureDialog() {
-    _selectedPicOption = 0;
     ModalEffects.showScaleFadeDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          "Profile Picture",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildRadioOption("Choose from available avatars", 0),
-            _buildRadioOption("Choose from library", 1),
-            _buildRadioOption("Take photo", 2),
-            _buildRadioOption("Remove current picture", 3),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (_selectedPicOption == 0)
-                _showAvatarGridDialog();
-              else if (_selectedPicOption == 1)
-                _pickImage(ImageSource.gallery);
-              else if (_selectedPicOption == 2)
-                _pickImage(ImageSource.camera);
-              else if (_selectedPicOption == 3)
-                setState(() {
-                  _profileImageFile = null;
-                  _selectedAvatarIndex = null;
-                  _currentAvatarUrl = null;
-                });
-            },
-            child: const Text("OK", style: TextStyle(color: Color(0xFF4CAF50))),
+      builder: (context) {
+        int selectedOption = _selectedPicOption;
+
+        return StatefulBuilder(
+          builder: (context, setStateSB) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              "Profile Picture",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildRadioOption(
+                  "Choose from available avatars",
+                  0,
+                  selectedOption,
+                  (val) => setStateSB(() => selectedOption = val),
+                ),
+                _buildRadioOption(
+                  "Choose from library",
+                  1,
+                  selectedOption,
+                  (val) => setStateSB(() => selectedOption = val),
+                ),
+                _buildRadioOption(
+                  "Take photo",
+                  2,
+                  selectedOption,
+                  (val) => setStateSB(() => selectedOption = val),
+                ),
+                _buildRadioOption(
+                  "Remove current picture",
+                  3,
+                  selectedOption,
+                  (val) => setStateSB(() => selectedOption = val),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  _selectedPicOption = selectedOption;
+                  Navigator.pop(context);
+                  if (_selectedPicOption == 0)
+                    _showAvatarGridDialog();
+                  else if (_selectedPicOption == 1)
+                    _pickImage(ImageSource.gallery);
+                  else if (_selectedPicOption == 2)
+                    _pickImage(ImageSource.camera);
+                  else if (_selectedPicOption == 3)
+                    setState(() {
+                      _profileImageFile = null;
+                      _selectedAvatarIndex = null;
+                      _currentAvatarUrl = null;
+                    });
+                },
+                child: const Text(
+                  "OK",
+                  style: TextStyle(color: Color(0xFF4CAF50)),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildRadioOption(String title, int value) {
-    return StatefulBuilder(
-      builder: (context, setStateSB) => RadioListTile<int>(
-        title: Text(title, style: const TextStyle(fontSize: 14)),
-        value: value,
-        groupValue: _selectedPicOption,
-        activeColor: const Color(0xFF4CAF50),
-        onChanged: (val) => setStateSB(() => _selectedPicOption = val!),
-      ),
+  Widget _buildRadioOption(
+    String title,
+    int value,
+    int selectedOption,
+    ValueChanged<int> onChanged,
+  ) {
+    return RadioListTile<int>(
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      value: value,
+      groupValue: selectedOption,
+      activeColor: const Color(0xFF4CAF50),
+      onChanged: (val) => onChanged(val!),
     );
   }
 

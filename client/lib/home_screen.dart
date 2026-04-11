@@ -20,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Color _greenColor = const Color(0xFF4CAF50);
   final Color _lightGreenColor = const Color(0xFFE8F5E9);
   final Color _bgColor = const Color(0xFFF8F9FA);
+  final NumberFormat _vndFormat = NumberFormat('#,###', 'en_US');
 
   bool _isLoading = true;
   bool _isFetched = false;
@@ -65,20 +66,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // 2. Cập nhật thông số từ Statistics
           if (statsData != null) {
-            targetCalo = (statsData['targetCalo'] ?? 1800).toDouble();
-            currentCaloTaken = (statsData['todayCalo'] ?? 0).toDouble();
-            currentBurned = (statsData['todayBurned'] ?? 0).toDouble();
-            currentExpense = (statsData['todayExpense'] ?? 0).toDouble();
+            targetCalo = ((statsData['targetCalo'] ?? 1800) as num)
+                .roundToDouble();
+            currentCaloTaken = ((statsData['todayCalo'] ?? 0) as num)
+                .roundToDouble();
+            currentBurned = ((statsData['todayBurned'] ?? 0) as num)
+                .roundToDouble();
+            currentExpense = ((statsData['todayExpense'] ?? 0) as num)
+                .roundToDouble();
             _userAvatarUrl = statsData['avatarUrl'];
             _avatarIndex = statsData['avatarIndex'] != null
                 ? (statsData['avatarIndex'] as num).toInt()
                 : null;
 
             weeklyCalo = (statsData['weeklyCalo'] as List)
-                .map((e) => (e as num).toDouble())
+                .map((e) => (e as num).roundToDouble())
                 .toList();
             weeklyExpense = (statsData['weeklyExpense'] as List)
-                .map((e) => (e as num).toDouble())
+                .map((e) => (e as num).roundToDouble())
                 .toList();
           }
           _isLoading = false;
@@ -233,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildStatColumn(
             "EXPENSE",
-            "₫${(currentExpense / 1000).toStringAsFixed(0)}k",
+            "${_vndFormat.format(currentExpense)} VNĐ",
           ),
           _buildProgressCircle(),
           _buildStatColumn("BURNED", currentBurned.toStringAsFixed(0)),
@@ -322,6 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
           maxY: maxCalo,
+          barTouchData: BarTouchData(enabled: false),
           titlesData: FlTitlesData(
             show: true,
             bottomTitles: AxisTitles(
@@ -467,7 +473,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.push(
               context,
               CustomPageRoute(page: const ExpenseScreen()),
-            );
+            ).then((_) async {
+              _isFetched = false;
+              await _fetchRealData();
+            });
           },
         ),
         _buildQuickButton(
