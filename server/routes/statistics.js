@@ -62,6 +62,7 @@ router.get('/home/:userId', async (req, res) => {
         const expenses = await Expense.find({ userId }).select('amount date');
 
         let weeklyCalo = [0, 0, 0, 0, 0, 0, 0];
+        let weeklyBurned = [0, 0, 0, 0, 0, 0, 0];
         let weeklyExpense = [0, 0, 0, 0, 0, 0, 0];
         let todayCalo = 0;
         let todayBurned = 0;
@@ -86,6 +87,7 @@ router.get('/home/:userId', async (req, res) => {
                 }
 
                 weeklyCalo[index] = calo;
+                weeklyBurned[index] = burned;
                 if (index === 6) {
                     todayCalo = calo;
                     todayBurned = burned;
@@ -114,6 +116,7 @@ router.get('/home/:userId', async (req, res) => {
                 targetCalo,
                 todayExpense,
                 weeklyCalo,
+                weeklyBurned,
                 weeklyExpense,
                 avatarUrl: userAvatarUrl,
                 avatarIndex

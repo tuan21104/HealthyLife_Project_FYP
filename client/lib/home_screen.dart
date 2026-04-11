@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _userAvatarUrl;
   int? _avatarIndex;
   List<double> weeklyCalo = [0, 0, 0, 0, 0, 0, 0];
+  List<double> weeklyBurned = [0, 0, 0, 0, 0, 0, 0];
   List<double> weeklyExpense = [0, 0, 0, 0, 0, 0, 0];
 
   @override
@@ -80,6 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 : null;
 
             weeklyCalo = (statsData['weeklyCalo'] as List)
+                .map((e) => (e as num).roundToDouble())
+                .toList();
+            weeklyBurned = (statsData['weeklyBurned'] as List)
                 .map((e) => (e as num).roundToDouble())
                 .toList();
             weeklyExpense = (statsData['weeklyExpense'] as List)
@@ -233,25 +237,52 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildStatColumn(
-            "EXPENSE",
-            "${_vndFormat.format(currentExpense)} VNĐ",
-          ),
-          _buildProgressCircle(),
-          _buildStatColumn("BURNED", currentBurned.toStringAsFixed(0)),
-        ],
+      child: SizedBox(
+        height: 132,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Center(child: _buildProgressCircle()),
+            Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: _buildStatColumn(
+                      "EXPENSE",
+                      "${_vndFormat.format(currentExpense)} VNĐ",
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 120),
+                Expanded(
+                  child: Center(
+                    child: _buildStatColumn(
+                      "BURNED",
+                      currentBurned.toStringAsFixed(0),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatColumn(String label, String value) {
+  Widget _buildStatColumn(
+    String label,
+    String value, {
+    CrossAxisAlignment align = CrossAxisAlignment.center,
+    TextAlign textAlign = TextAlign.center,
+  }) {
     return Column(
+      crossAxisAlignment: align,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
+          textAlign: textAlign,
           style: TextStyle(
             fontSize: 12,
             color: Colors.grey[500],
@@ -261,7 +292,10 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          textAlign: textAlign,
+          maxLines: 2,
+          softWrap: true,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -307,6 +341,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCalorieChart() {
     double maxCalo = weeklyCalo.reduce((a, b) => a > b ? a : b);
+    double maxBurned = weeklyBurned.reduce((a, b) => a > b ? a : b);
+    if (maxBurned > maxCalo) maxCalo = maxBurned;
     if (maxCalo < 2500) maxCalo = 2500;
 
     return Container(
@@ -327,7 +363,37 @@ class _HomeScreenState extends State<HomeScreen> {
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
           maxY: maxCalo,
-          barTouchData: BarTouchData(enabled: false),
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                final dayIndex = group.x.toInt();
+                final dayLabel = [
+                  'CN',
+                  'T2',
+                  'T3',
+                  'T4',
+                  'T5',
+                  'T6',
+                  'T7',
+                ][dayIndex];
+                final isTaken = rodIndex == 0;
+                final value = isTaken
+                    ? weeklyCalo[dayIndex]
+                    : weeklyBurned[dayIndex];
+                final title = isTaken ? 'Nạp' : 'Burnt';
+
+                return BarTooltipItem(
+                  '$dayLabel\n$title: ${value.toStringAsFixed(0)} kcal',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                );
+              },
+            ),
+          ),
           titlesData: FlTitlesData(
             show: true,
             bottomTitles: AxisTitles(
@@ -372,11 +438,18 @@ class _HomeScreenState extends State<HomeScreen> {
             7,
             (i) => BarChartGroupData(
               x: i,
+              barsSpace: 6,
               barRods: [
                 BarChartRodData(
                   toY: weeklyCalo[i],
                   color: i == 6 ? _greenColor : _lightGreenColor,
-                  width: 22,
+                  width: 10,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                BarChartRodData(
+                  toY: weeklyBurned[i],
+                  color: const Color(0xFFFFA726),
+                  width: 10,
                   borderRadius: BorderRadius.circular(6),
                 ),
               ],
@@ -388,6 +461,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildExpenseChart() {
+    double maxExpense = weeklyExpense.reduce((a, b) => a > b ? a : b);
+    if (maxExpense <= 0) maxExpense = 100000;
+
     return Container(
       height: 220,
       padding: const EdgeInsets.all(16),
@@ -404,6 +480,25 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: LineChart(
         LineChartData(
+          minY: 0,
+          maxY: maxExpense * 1.2,
+          lineTouchData: LineTouchData(
+            handleBuiltInTouches: true,
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  return LineTooltipItem(
+                    _formatMoney(spot.y),
+                    const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  );
+                }).toList();
+              },
+            ),
+          ),
           gridData: const FlGridData(show: false),
           titlesData: FlTitlesData(
             show: true,
@@ -436,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> {
             LineChartBarData(
               spots: List.generate(
                 7,
-                (i) => FlSpot(i.toDouble(), weeklyExpense[i] / 1000),
+                (i) => FlSpot(i.toDouble(), weeklyExpense[i]),
               ),
               isCurved: true,
               color: _greenColor,
@@ -451,6 +546,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  String _formatMoney(num value) {
+    return '${_vndFormat.format(value.round())} VNĐ';
   }
 
   // 5. ACTION BUTTONS (Đã đổi Log Meal -> Shopping)
