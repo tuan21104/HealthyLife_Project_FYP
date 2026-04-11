@@ -14,6 +14,53 @@ class AuthService {
       ? 'http://$myWifiIp:3000'
       : 'http://10.0.2.2:3000';
 
+  static Map<String, dynamic>? _extractUserFromPayload(dynamic payload) {
+    if (payload == null) return null;
+
+    if (payload is Map<String, dynamic>) {
+      final directUser = payload['user'];
+      if (directUser is Map) {
+        return Map<String, dynamic>.from(directUser);
+      }
+
+      final directData = payload['data'];
+      if (directData is Map<String, dynamic>) {
+        final nestedUser = directData['user'];
+        if (nestedUser is Map) {
+          return Map<String, dynamic>.from(nestedUser);
+        }
+
+        final nestedProfile = directData['profile'];
+        if (nestedProfile is Map) {
+          return Map<String, dynamic>.from(nestedProfile);
+        }
+
+        final nestedData = directData['data'];
+        if (nestedData is Map) {
+          return Map<String, dynamic>.from(nestedData);
+        }
+
+        if (directData.containsKey('_id') || directData.containsKey('id')) {
+          return Map<String, dynamic>.from(directData);
+        }
+      }
+
+      final result = payload['result'];
+      if (result is Map<String, dynamic>) {
+        final resultUser = result['user'];
+        if (resultUser is Map) {
+          return Map<String, dynamic>.from(resultUser);
+        }
+      }
+
+      if (payload.containsKey('_id') || payload.containsKey('id')) {
+        return Map<String, dynamic>.from(payload);
+      }
+    }
+
+    return null;
+  }
+
   // --- HÀM 1: ĐĂNG KÝ ---
   static Future<Map<String, dynamic>> register(
     String email,
@@ -108,14 +155,25 @@ class AuthService {
   static Future<bool> updateProfile(Map<String, dynamic> profileData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString(
-        'userId',
-      ); // Tự lấy ID từ máy, không bắt truyền vào nữa
+      final localUserId = prefs.getString('userId');
+      final bodyUserId =
+          profileData['userId']?.toString() ??
+          profileData['_id']?.toString() ??
+          profileData['id']?.toString();
+      final userId = (bodyUserId != null && bodyUserId.isNotEmpty)
+          ? bodyUserId
+          : localUserId;
       final token = prefs.getString('jwt_token');
 
-      if (userId == null) return false;
+      if (userId == null || userId.isEmpty) return false;
 
-      profileData['userId'] = userId; // Gán ID vào body
+      final requestBody = Map<String, dynamic>.from(profileData);
+      requestBody['userId'] = userId;
+
+      print('==== 🔄 UPDATE PROFILE (bool) REQUEST ====');
+      print('URL: $baseUrl/api/users/update');
+      print('userId: $userId');
+      print('requestBody: $requestBody');
 
       final response = await http.put(
         Uri.parse('$baseUrl/api/users/update'),
@@ -123,13 +181,97 @@ class AuthService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode(profileData),
+        body: jsonEncode(requestBody),
       );
+
+      print('==== 📥 UPDATE PROFILE (bool) RESPONSE ====');
+      print('statusCode: ${response.statusCode}');
+      print('body: ${response.body}');
 
       return response.statusCode == 200;
     } catch (e) {
       print("Lỗi updateProfile: $e");
       return false;
+    }
+  }
+
+  // Bản đầy đủ: trả về cả dữ liệu user mới sau khi server cập nhật
+  static Future<Map<String, dynamic>> updateProfileWithResponse(
+    Map<String, dynamic> profileData,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localUserId = prefs.getString('userId');
+      final bodyUserId =
+          profileData['userId']?.toString() ??
+          profileData['_id']?.toString() ??
+          profileData['id']?.toString();
+      final userId = (bodyUserId != null && bodyUserId.isNotEmpty)
+          ? bodyUserId
+          : localUserId;
+      final token = prefs.getString('jwt_token') ?? prefs.getString('token');
+
+      if (userId == null || userId.isEmpty) {
+        return {'success': false, 'message': 'Thiếu userId local'};
+      }
+
+      final requestBody = Map<String, dynamic>.from(profileData);
+      requestBody['userId'] = userId;
+
+      print('==== 🔄 UPDATE PROFILE WITH RESPONSE REQUEST ====');
+      print('URL: $baseUrl/api/users/update');
+      print('userId: $userId');
+      print('requestBody: $requestBody');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/users/update'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print('==== 📥 UPDATE PROFILE WITH RESPONSE RAW ====');
+      print('statusCode: ${response.statusCode}');
+      print('body: ${response.body}');
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {
+        decoded = null;
+      }
+
+      if (decoded != null) {
+        print('==== 🧩 UPDATE PROFILE PARSED PAYLOAD ====');
+        print(decoded);
+      }
+
+      if (response.statusCode == 200) {
+        final user = _extractUserFromPayload(decoded);
+
+        if (user == null) {
+          return {
+            'success': false,
+            'message':
+                'Update thành công nhưng không tìm thấy user trong payload.',
+            'raw': decoded,
+          };
+        }
+
+        return {'success': true, 'user': user, 'raw': decoded};
+      }
+
+      String message = 'Server từ chối cập nhật';
+      if (decoded is Map<String, dynamic>) {
+        message = decoded['message']?.toString() ?? message;
+      }
+
+      return {'success': false, 'message': message};
+    } catch (e) {
+      print('Lỗi updateProfileWithResponse: $e');
+      return {'success': false, 'message': e.toString()};
     }
   }
 

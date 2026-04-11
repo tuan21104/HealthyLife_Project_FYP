@@ -118,35 +118,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    _buildProfileRow(
-                      "Name:",
-                      _userData?['name'] ?? "Chưa cập nhật",
+                    _buildSectionHeader(
+                      title: 'Your Info',
+                      subtitle: 'Thông tin cá nhân và hồ sơ cơ bản của bạn',
                     ).withStagger(0),
-                    _buildProfileRow(
-                      "ID:",
-                      _userData?['_id']?.toString().substring(0, 8) ??
-                          "Chưa cập nhật",
-                    ).withStagger(1),
-                    _buildProfileRow(
-                      "Email:",
-                      _userData?['email'] ?? "Chưa cập nhật",
+                    const SizedBox(height: 14),
+                    _buildPersonalInfoCard().withStagger(1),
+
+                    const SizedBox(height: 18),
+                    _buildSectionHeader(
+                      title: 'Goal Overview',
+                      subtitle:
+                          'Mục tiêu bạn đã thiết lập trong quá trình đăng ký',
                     ).withStagger(2),
-                    _buildProfileRow(
-                      "Gender:",
-                      _userData?['gender'] ?? "Chưa cập nhật",
-                    ).withStagger(3),
-                    _buildProfileRow(
-                      "Weight:",
-                      _userData?['weight'] != null
-                          ? "${_userData!['weight']} Kg"
-                          : "Chưa cập nhật",
-                    ).withStagger(4),
-                    _buildProfileRow(
-                      "Height:",
-                      _userData?['height'] != null
-                          ? "${_userData!['height']} Cm"
-                          : "Chưa cập nhật",
-                    ).withStagger(5),
+                    const SizedBox(height: 14),
+                    _buildGoalOverviewCard().withStagger(3),
 
                     const SizedBox(height: 40),
 
@@ -163,11 +149,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           );
 
+                          if (!mounted || result == null) return;
+
                           if (result == true) {
-                            setState(() {
-                              _isLoading = true;
-                            });
+                            setState(() => _isLoading = true);
                             _fetchUserData();
+                            return;
+                          }
+
+                          if (result is Map && result['updated'] == true) {
+                            final updatedUser = result['user'];
+                            if (updatedUser is Map) {
+                              setState(() {
+                                _userData = Map<String, dynamic>.from(
+                                  updatedUser,
+                                );
+                                _isLoading = false;
+                              });
+                            } else {
+                              setState(() => _isLoading = true);
+                              _fetchUserData();
+                            }
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -186,7 +188,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                    ).withStagger(6),
+                    ).withStagger(4),
 
                     const SizedBox(height: 16),
 
@@ -211,7 +213,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                    ).withStagger(7),
+                    ).withStagger(5),
 
                     const SizedBox(height: 16),
 
@@ -236,7 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                    ).withStagger(8),
+                    ).withStagger(6),
 
                     const SizedBox(height: 40),
                   ],
@@ -259,23 +261,368 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return const Icon(Icons.person, size: 40, color: Colors.grey);
   }
 
-  Widget _buildProfileRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(fontSize: 13, color: Colors.black54),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPersonalInfoCard() {
+    final items = <_ProfileInfoItem>[
+      _ProfileInfoItem(
+        label: 'Name',
+        value: _userData?['name'] ?? 'Chưa cập nhật',
+        icon: Icons.person_outline_rounded,
+        color: const Color(0xFF4CAF50),
+      ),
+      _ProfileInfoItem(
+        label: 'ID',
+        value: _userData?['_id']?.toString().substring(0, 8) ?? 'Chưa cập nhật',
+        icon: Icons.badge_outlined,
+        color: const Color(0xFF78909C),
+      ),
+      _ProfileInfoItem(
+        label: 'Email',
+        value: _userData?['email'] ?? 'Chưa cập nhật',
+        icon: Icons.email_outlined,
+        color: const Color(0xFF1976D2),
+      ),
+      _ProfileInfoItem(
+        label: 'Gender',
+        value: _userData?['gender'] ?? 'Chưa cập nhật',
+        icon: Icons.wc_outlined,
+        color: const Color(0xFFFF8F00),
+      ),
+      _ProfileInfoItem(
+        label: 'Weight',
+        value: _userData?['weight'] != null
+            ? '${_userData!['weight']} Kg'
+            : 'Chưa cập nhật',
+        icon: Icons.monitor_weight_outlined,
+        color: const Color(0xFF8D6E63),
+      ),
+      _ProfileInfoItem(
+        label: 'Height',
+        value: _userData?['height'] != null
+            ? '${_userData!['height']} Cm'
+            : 'Chưa cập nhật',
+        icon: Icons.height_outlined,
+        color: const Color(0xFF26A69A),
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAF8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E9E2)),
+      ),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.85,
+        children: items
+            .map(
+              (item) => _buildInfoTile(
+                label: item.label,
+                value: item.value,
+                icon: item.icon,
+                color: item.color,
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildInfoTile({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6ECE6)),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
+        ],
+      ),
+    );
+  }
+
+  String _formatGoalLabel(String? goal) {
+    switch (goal) {
+      case 'Losing Weight':
+        return 'Giảm cân';
+      case 'Gaining Weight':
+        return 'Tăng cân';
+      case 'Keeping Weight':
+        return 'Giữ cân';
+      case 'Being Fit':
+        return 'Giữ dáng';
+      default:
+        return 'Chưa cập nhật';
+    }
+  }
+
+  String _formatNullableNum(dynamic value, {String suffix = ''}) {
+    if (value == null) return 'Chưa cập nhật';
+    if (value is num)
+      return '${value.toStringAsFixed(value % 1 == 0 ? 0 : 1)}$suffix';
+    return '$value$suffix';
+  }
+
+  Widget _buildGoalOverviewCard() {
+    final goal = _userData?['goal']?.toString();
+    final dailyBudget = _userData?['dailyBudget'];
+    final targetWeight = _userData?['targetWeight'];
+    final targetWeightLoss = _userData?['targetWeightLoss'];
+    final durationDays = _userData?['durationDays'];
+    final maintenanceCalo = _userData?['maintenanceCalo'];
+    final targetCalo = _userData?['targetCalo'];
+    final isLosing = goal == 'Losing Weight';
+    final isGaining = goal == 'Gaining Weight';
+
+    String planLabel;
+    if (targetWeightLoss != null && durationDays != null) {
+      planLabel =
+          '${isLosing
+              ? 'Giảm'
+              : isGaining
+              ? 'Tăng'
+              : 'Điều chỉnh'} '
+          '${_formatNullableNum(targetWeightLoss, suffix: ' Kg')} '
+          'trong ${_formatNullableNum(durationDays, suffix: ' ngày')}';
+    } else if (goal == 'Being Fit' || goal == 'Keeping Weight') {
+      planLabel = 'Duy trì thể trạng hiện tại';
+    } else {
+      planLabel = 'Chưa cập nhật kế hoạch';
+    }
+
+    final calorieLabel = maintenanceCalo != null && targetCalo != null
+        ? '${_formatNullableNum(maintenanceCalo)} → ${_formatNullableNum(targetCalo)} kcal/ngày'
+        : 'Chưa cập nhật';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFF7FAF8), const Color(0xFFEFF8F1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E9E2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.72),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatGoalLabel(goal),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  planLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.15,
+            children: [
+              _buildGoalInfoCard(
+                icon: Icons.account_balance_wallet_rounded,
+                title: 'Daily budget',
+                value: _formatNullableNum(dailyBudget, suffix: ' VNĐ'),
+                color: const Color(0xFF4CAF50),
+              ),
+              _buildGoalInfoCard(
+                icon: Icons.monitor_weight_rounded,
+                title: 'Target weight',
+                value: _formatNullableNum(targetWeight, suffix: ' Kg'),
+                color: const Color(0xFF8D6E63),
+              ),
+              _buildGoalInfoCard(
+                icon: Icons.schedule_rounded,
+                title: 'Duration',
+                value: durationDays != null
+                    ? _formatNullableNum(durationDays, suffix: ' days')
+                    : 'Chưa cập nhật',
+                color: const Color(0xFF1976D2),
+              ),
+              _buildGoalInfoCard(
+                icon: Icons.local_fire_department_rounded,
+                title: 'Calories',
+                value: calorieLabel,
+                color: const Color(0xFFFF8F00),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.72),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Thông tin này được ghi lại từ bước thiết lập mục tiêu và có thể thay đổi bằng nút Change Goal.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.grey[700],
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoalInfoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.82),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E9E2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+              height: 1.2,
             ),
           ),
         ],
@@ -339,4 +686,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
+}
+
+class _ProfileInfoItem {
+  const _ProfileInfoItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
 }

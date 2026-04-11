@@ -37,7 +37,7 @@ const UserSchema = new mongoose.Schema({
     },
     activityLevel: {
         type: String,
-        enum: ['Sedentary', 'Light', 'Lightly Active', 'Moderate', 'Active', 'Very Active'],
+        enum: ['Sedentary', 'Light', 'Lightly Active', 'Moderate', 'Moderately Active', 'Active', 'Very Active'],
         default: 'Sedentary'
     },
 
@@ -46,6 +46,10 @@ const UserSchema = new mongoose.Schema({
         type: String, 
         default: 'maintain'
     },
+    birthDate: {
+        type: String,
+        default: ''
+    },
     dailyBudget: {
         type: Number, 
         default: 0
@@ -53,6 +57,26 @@ const UserSchema = new mongoose.Schema({
     monthlyBudget: {
         type: Number,
         default: 10000000
+    },
+    targetWeight: {
+        type: Number,
+        default: null
+    },
+    targetWeightLoss: {
+        type: Number,
+        default: null
+    },
+    durationDays: {
+        type: Number,
+        default: null
+    },
+    maintenanceCalo: {
+        type: Number,
+        default: null
+    },
+    targetCalo: {
+        type: Number,
+        default: null
     },
     avatarUrl: { // Thêm trường avatarUrl
         type: String,

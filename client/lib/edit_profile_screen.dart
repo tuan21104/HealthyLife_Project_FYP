@@ -37,23 +37,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     "Very Active",
   ];
 
+  dynamic _readUserValue(List<String> keys) {
+    for (final key in keys) {
+      final value = widget.userData[key];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  String _stringValue(List<String> keys, {String fallback = ''}) {
+    final value = _readUserValue(keys);
+    return value?.toString() ?? fallback;
+  }
+
   @override
   void initState() {
     super.initState();
     // ĐIỀN SẴN DỮ LIỆU CŨ VÀO FORM
-    _nameController.text = widget.userData['name'] ?? '';
-    _heightController.text = (widget.userData['height'] ?? '').toString();
-    _weightController.text = (widget.userData['weight'] ?? '').toString();
-    _selectedGender = widget.userData['gender'] ?? 'Male';
-    _selectedActivity = widget.userData['activityLevel'] ?? 'Sedentary';
+    _nameController.text = _stringValue(['name'], fallback: '');
+    _heightController.text = _stringValue(['height'], fallback: '');
+    _weightController.text = _stringValue(['weight'], fallback: '');
+    _selectedGender = _stringValue(['gender'], fallback: 'Male');
+    _selectedActivity = _stringValue([
+      'activityLevel',
+      'activity',
+    ], fallback: 'Sedentary');
 
     // Load avatar cũ: Có thể là Index hoặc URL
-    _selectedAvatarIndex = widget.userData['avatarIndex'];
-    _currentAvatarUrl = widget.userData['avatarUrl'];
+    final avatarIndexValue = _readUserValue(['avatarIndex']);
+    if (avatarIndexValue is int) {
+      _selectedAvatarIndex = avatarIndexValue;
+    } else if (avatarIndexValue is String) {
+      _selectedAvatarIndex = int.tryParse(avatarIndexValue);
+    }
+    _currentAvatarUrl = _stringValue(['avatarUrl'], fallback: '');
+    if (_currentAvatarUrl != null && _currentAvatarUrl!.isEmpty) {
+      _currentAvatarUrl = null;
+    }
 
-    if (widget.userData['birthDate'] != null &&
-        widget.userData['birthDate'] != "") {
-      _selectedDate = DateTime.tryParse(widget.userData['birthDate']);
+    final birthDate = _stringValue(['birthDate', 'dob'], fallback: '');
+    if (birthDate.isNotEmpty) {
+      _selectedDate = DateTime.tryParse(birthDate);
     }
   }
 
@@ -121,6 +147,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           : "";
 
       Map<String, dynamic> updateData = {
+        'userId': widget.userData['_id'] ?? widget.userData['id'],
         'name': _nameController.text,
         'height': height,
         'weight': weight,
@@ -132,11 +159,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       };
 
       // 3. GỌI API UPDATE
-      bool success = await AuthService.updateProfile(updateData);
+      final updateResult = await AuthService.updateProfileWithResponse(
+        updateData,
+      );
+      final bool success = updateResult['success'] == true;
 
       setState(() => _isLoading = false);
 
       if (success) {
+        final latestUser = updateResult['user'];
+
+        if (latestUser == null) {
+          throw Exception('Đã update nhưng server không trả dữ liệu user mới.');
+        }
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -144,9 +180,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true); // Trả về true để Home refresh
+        Navigator.pop(context, {'updated': true, 'user': latestUser});
       } else {
-        throw Exception("Server từ chối cập nhật.");
+        throw Exception(updateResult['message'] ?? "Server từ chối cập nhật.");
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -182,119 +218,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- HIỂN THỊ AVATAR THÔNG MINH ---
-              Center(
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.grey[200],
-                      backgroundImage: _profileImageFile != null
-                          ? FileImage(_profileImageFile!) as ImageProvider
-                          : (_currentAvatarUrl != null &&
-                                    _currentAvatarUrl!.isNotEmpty
-                                ? NetworkImage(_currentAvatarUrl!)
-                                : (_selectedAvatarIndex != null
-                                      ? AssetImage(
-                                          'assets/images/avatar_${_selectedAvatarIndex! + 1}.png',
-                                        )
-                                      : null)),
-                      child:
-                          _profileImageFile == null &&
-                              _currentAvatarUrl == null &&
-                              _selectedAvatarIndex == null
-                          ? Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Colors.grey[400],
-                            )
-                          : null,
-                    ),
-                    GestureDetector(
-                      onTap: _showProfilePictureDialog,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4CAF50),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              _buildSectionHeader(
+                title: "Profile Photo",
+                subtitle: "Cập nhật ảnh đại diện để cá nhân hóa hồ sơ của bạn",
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 14),
+              _buildAvatarCard(),
 
-              _buildLabel("Full Name"),
-              _buildTextField(
-                controller: _nameController,
-                hint: "Enter your name",
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel("Height (cm)"),
-                        _buildTextField(
-                          controller: _heightController,
-                          hint: "e.g. 170",
-                          isNumber: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel("Weight (kg)"),
-                        _buildTextField(
-                          controller: _weightController,
-                          hint: "e.g. 65",
-                          isNumber: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              _buildSectionHeader(
+                title: "Personal Information",
+                subtitle:
+                    "Điền đầy đủ để hệ thống tính toán mục tiêu chính xác hơn",
               ),
-              const SizedBox(height: 20),
-
-              _buildLabel("Gender"),
-              GestureDetector(
-                onTap: _showGenderDialog,
-                child: _buildDropdownField(_selectedGender ?? ""),
-              ),
-              const SizedBox(height: 20),
-
-              _buildLabel("Activity Level"),
-              GestureDetector(
-                onTap: _showActivityDialog,
-                child: _buildDropdownField(_selectedActivity ?? ""),
-              ),
-              const SizedBox(height: 20),
-
-              _buildLabel("Birth Date"),
-              GestureDetector(
-                onTap: () => _selectDate(context),
-                child: _buildDropdownField(
-                  _selectedDate != null
-                      ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
-                      : "Select your birth date",
-                ),
-              ),
+              const SizedBox(height: 14),
+              _buildFormCard(),
 
               const SizedBox(height: 40),
 
@@ -338,6 +277,157 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   // --- UI HELPER WIDGETS ---
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(fontSize: 13, color: Colors.black54),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvatarCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAF8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E9E2)),
+      ),
+      child: Center(
+        child: Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            CircleAvatar(
+              radius: 52,
+              backgroundColor: Colors.grey[200],
+              backgroundImage: _profileImageFile != null
+                  ? FileImage(_profileImageFile!) as ImageProvider
+                  : (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty
+                        ? NetworkImage(_currentAvatarUrl!)
+                        : (_selectedAvatarIndex != null
+                              ? AssetImage(
+                                  'assets/images/avatar_${_selectedAvatarIndex! + 1}.png',
+                                )
+                              : null)),
+              child:
+                  _profileImageFile == null &&
+                      _currentAvatarUrl == null &&
+                      _selectedAvatarIndex == null
+                  ? Icon(Icons.person, size: 52, color: Colors.grey[400])
+                  : null,
+            ),
+            GestureDetector(
+              onTap: _showProfilePictureDialog,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF50),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const Icon(
+                  Icons.camera_alt,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAF8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E9E2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Full Name"),
+          _buildTextField(controller: _nameController, hint: "Enter your name"),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLabel("Height (cm)"),
+                    _buildTextField(
+                      controller: _heightController,
+                      hint: "e.g. 170",
+                      isNumber: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLabel("Weight (kg)"),
+                    _buildTextField(
+                      controller: _weightController,
+                      hint: "e.g. 65",
+                      isNumber: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildLabel("Gender"),
+          GestureDetector(
+            onTap: _showGenderDialog,
+            child: _buildDropdownField(_selectedGender ?? ""),
+          ),
+          const SizedBox(height: 16),
+          _buildLabel("Activity Level"),
+          GestureDetector(
+            onTap: _showActivityDialog,
+            child: _buildDropdownField(_selectedActivity ?? ""),
+          ),
+          const SizedBox(height: 16),
+          _buildLabel("Birth Date"),
+          GestureDetector(
+            onTap: () => _selectDate(context),
+            child: _buildDropdownField(
+              _selectedDate != null
+                  ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
+                  : "Select your birth date",
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8.0),
     child: Text(
@@ -360,6 +450,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         hintText: hint,
+        filled: true,
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),
@@ -368,6 +460,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),
         ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: Color(0xFF4CAF50), width: 1.4),
+        ),
       ),
     );
   }
@@ -375,6 +471,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildDropdownField(String value) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     decoration: BoxDecoration(
+      color: Colors.white,
       border: Border.all(color: Colors.grey[300]!),
       borderRadius: BorderRadius.circular(12),
     ),

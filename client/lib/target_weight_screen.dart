@@ -168,11 +168,11 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
   }
 
   // --- BƯỚC 2: TÍNH TOÁN CALO & CHUYỂN TRANG ---
-  void _finalizeAndNavigate(
+  Future<void> _finalizeAndNavigate(
     double targetInputWeight,
     int days,
     double weightDifference,
-  ) {
+  ) async {
     // 1. Tính Tuổi từ BirthDate
     DateTime dob =
         DateTime.tryParse(_userData!['birthDate'] ?? "") ??
@@ -212,7 +212,18 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
     if (targetCalo > maintenanceCalo + 1000)
       targetCalo = maintenanceCalo + 1000;
 
-    // 7. Chuyển trang
+    // 7. Lưu mục tiêu lên profile để có thể hiển thị lại ở Profile screen
+    await AuthService.updateProfile({
+      'targetWeight': targetInputWeight,
+      'targetWeightLoss': weightDifference.abs(),
+      'durationDays': days,
+      'maintenanceCalo': maintenanceCalo,
+      'targetCalo': targetCalo,
+    });
+
+    // 8. Chuyển trang
+    if (!mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
