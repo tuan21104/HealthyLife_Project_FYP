@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/auth_service.dart';
@@ -130,15 +131,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 _buildSummaryCard(),
                 const SizedBox(height: 32),
-                const Text(
-                  "Weekly Health Overview",
+                Text(
+                  'home.weekly_health'.tr(),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 _buildCalorieChart(),
                 const SizedBox(height: 32),
-                const Text(
-                  "Weekly Expense Trend",
+                Text(
+                  'home.weekly_expense'.tr(),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
@@ -559,7 +560,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildQuickButton(
           Icons.shopping_bag_outlined,
-          "Shopping",
+          'shop.title'.tr(),
           onTap: () {
             // Chuyển sang trang Shop
             Navigator.push(context, CustomPageRoute(page: const ShopScreen()));
@@ -567,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _buildQuickButton(
           Icons.account_balance_wallet_outlined,
-          "Add Expense",
+          'expense.add_transaction'.tr(),
           onTap: () {
             Navigator.push(
               context,
@@ -580,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _buildQuickButton(
           Icons.auto_awesome_outlined,
-          "AI Chat",
+          'ai_chat.title'.tr(),
           onTap: () {
             Navigator.push(context, CustomPageRoute(page: const AskMeScreen()));
           },

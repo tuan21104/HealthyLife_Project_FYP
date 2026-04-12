@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'main_screen.dart';
 import 'ai_menu_screen.dart';
 
@@ -88,10 +89,10 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                               (Route<dynamic> route) => false,
                             );
                           },
-                          child: const Row(
+                          child: Row(
                             children: [
                               Text(
-                                "Start",
+                                'common.ok'.tr(),
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey,
@@ -120,8 +121,8 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            "Congratulations!",
+          Text(
+            'onboarding.congratulations'.tr(),
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -138,7 +139,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
           ),
           const SizedBox(height: 40),
           Text(
-            "You finished\nthe registration process\nsuccessfully!",
+            'onboarding.profile_complete'.tr(),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 18,
@@ -159,7 +160,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            "You should take",
+            'onboarding.you_should_take'.tr(),
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 10),
@@ -173,7 +174,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            "per day to stay in your\npresent weight.",
+            'onboarding.maintain_weight_hint'.tr(),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
@@ -217,7 +218,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
               children: [
                 TextSpan(
                   text:
-                      "As you are going to ${widget.isLosing ? 'lose' : 'gain'}\n",
+                      '${'onboarding.goal_prefix'.tr()} ${widget.isLosing ? 'onboarding.losing_weight'.tr() : 'onboarding.gaining_weight'.tr()}\n',
                 ),
                 TextSpan(
                   text: "${widget.targetWeightLoss}kg ",
@@ -226,7 +227,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                     color: Color(0xFF4CAF50),
                   ),
                 ),
-                const TextSpan(text: "in "),
+                TextSpan(text: '${'onboarding.in'.tr()} '),
                 TextSpan(
                   text: "${widget.durationDays} days, ",
                   style: const TextStyle(
@@ -234,7 +235,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                     color: Colors.orange,
                   ),
                 ),
-                const TextSpan(text: "you should\ntake "),
+                TextSpan(text: '${'onboarding.you_should_take'.tr()}\n'),
                 TextSpan(
                   text: "${widget.targetCalo} kcal ",
                   style: const TextStyle(
@@ -242,7 +243,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                     color: Colors.black87,
                   ),
                 ),
-                const TextSpan(text: "per day!"),
+                TextSpan(text: 'onboarding.per_day'.tr()),
               ],
             ),
           ),
@@ -265,8 +266,8 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                 );
               },
               icon: const Icon(Icons.auto_awesome, color: Colors.white),
-              label: const Text(
-                "Generate AI Menu",
+              label: Text(
+                'onboarding.generate_ai_menu'.tr(),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -291,10 +292,10 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
             height: 52,
             child: ElevatedButton(
               onPressed: () {
-              // Chuyển thẳng đến MainScreen bằng MaterialPageRoute
+                // Chuyển thẳng đến MainScreen bằng MaterialPageRoute
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const MainScreen()), 
+                  MaterialPageRoute(builder: (context) => const MainScreen()),
                   (Route<dynamic> route) => false, // Xoá sạch lịch sử trang cũ
                 );
               },
@@ -305,8 +306,8 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                "Go to Dashboard",
+              child: Text(
+                'nav.home'.tr(),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

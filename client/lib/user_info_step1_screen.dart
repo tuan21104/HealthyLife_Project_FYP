@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'services/auth_service.dart';
 import 'user_info_step2_screen.dart';
 import 'landing_screen.dart';
@@ -20,10 +21,10 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
   String? _selectedGoal;
 
   final List<String> _goals = [
-    "Losing Weight",
-    "Gaining Weight",
-    "Keeping Weight",
-    "Being Fit",
+    'onboarding.losing_weight',
+    'onboarding.gaining_weight',
+    'onboarding.keeping_weight',
+    'onboarding.being_fit',
   ];
 
   void _handleNext() async {
@@ -32,7 +33,7 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
         _budgetController.text.isEmpty ||
         _selectedGoal == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Vui lòng điền đầy đủ thông tin *")),
+        SnackBar(content: Text('onboarding.fill_all_fields'.tr())),
       );
       return;
     }
@@ -54,8 +55,8 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Lỗi lưu dữ liệu"),
+        SnackBar(
+          content: Text('common.error'.tr()),
           backgroundColor: Colors.red,
         ),
       );
@@ -88,8 +89,8 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Your Info",
+              Text(
+                'profile.your_info'.tr(),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -97,26 +98,30 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Step 1/2",
+              Text(
+                'onboarding.step_1_of_2'.tr(),
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 30),
 
-              _buildTextField(controller: _nameController, hint: "Your Name *"),
+              _buildTextField(
+                controller: _nameController,
+                hint: 'onboarding.name'.tr(),
+              ),
               const SizedBox(height: 20),
 
               GestureDetector(
                 onTap: () => _showGenderDialog(),
                 child: _buildFakeDropdown(
-                  text: _selectedGender ?? "Your Gender *",
+                  text: _selectedGender?.tr() ?? 'onboarding.gender'.tr(),
+                  isPlaceholder: _selectedGender == null,
                 ),
               ),
               const SizedBox(height: 20),
 
               _buildTextField(
                 controller: _budgetController,
-                hint: "Daily budget *",
+                hint: 'onboarding.daily_budget'.tr(),
                 isNumber: true,
               ),
               const SizedBox(height: 20),
@@ -124,7 +129,8 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
               GestureDetector(
                 onTap: () => _showGoalDialog(),
                 child: _buildFakeDropdown(
-                  text: _selectedGoal ?? "You're here for",
+                  text: _selectedGoal?.tr() ?? 'onboarding.goal'.tr(),
+                  isPlaceholder: _selectedGoal == null,
                   isGoal: true,
                 ),
               ),
@@ -143,8 +149,8 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    "Next",
+                  child: Text(
+                    'onboarding.next'.tr(),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -187,7 +193,11 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
     );
   }
 
-  Widget _buildFakeDropdown({required String text, bool isGoal = false}) {
+  Widget _buildFakeDropdown({
+    required String text,
+    bool isGoal = false,
+    bool isPlaceholder = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
@@ -200,9 +210,7 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
           Text(
             text,
             style: TextStyle(
-              color: text.contains("*") || text.contains("here for")
-                  ? Colors.grey[400]
-                  : Colors.black,
+              color: isPlaceholder ? Colors.grey[400] : Colors.black,
               fontSize: 16,
             ),
           ),
@@ -224,8 +232,8 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "You're here for",
+              Text(
+                'onboarding.goal'.tr(),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               IconButton(
@@ -239,7 +247,7 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
             children: _goals
                 .map(
                   (goal) => RadioListTile<String>(
-                    title: Text(goal),
+                    title: Text(goal.tr()),
                     value: goal,
                     groupValue: _selectedGoal,
                     activeColor: const Color(0xFF4CAF50),
@@ -262,7 +270,10 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
                   ),
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text("OK", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'common.ok'.tr(),
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -279,20 +290,21 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text("Select Gender"),
+          title: Text('onboarding.gender'.tr()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: ["Male", "Female", "Other"]
-                .map(
-                  (g) => ListTile(
-                    title: Text(g),
-                    onTap: () {
-                      setState(() => _selectedGender = g);
-                      Navigator.pop(context);
-                    },
-                  ),
-                )
-                .toList(),
+            children:
+                ['onboarding.male', 'onboarding.female', 'onboarding.other']
+                    .map(
+                      (g) => ListTile(
+                        title: Text(g.tr()),
+                        onTap: () {
+                          setState(() => _selectedGender = g);
+                          Navigator.pop(context);
+                        },
+                      ),
+                    )
+                    .toList(),
           ),
         );
       },

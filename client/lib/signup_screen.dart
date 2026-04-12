@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'login_screen.dart';
 import 'otp_verification_screen.dart';
 import 'services/auth_service.dart';
@@ -24,12 +25,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     String confirmPass = _confirmPassController.text.trim();
 
     if (email.isEmpty || password.isEmpty || confirmPass.isEmpty) {
-      _showMessage("Vui lòng điền đầy đủ thông tin!", Colors.red);
+      _showMessage('common.error'.tr(), Colors.red);
       return;
     }
 
     if (password != confirmPass) {
-      _showMessage("Mật khẩu xác nhận không khớp!", Colors.red);
+      _showMessage('common.error'.tr(), Colors.red);
       return;
     }
 
@@ -41,7 +42,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = false);
 
     if (result['success']) {
-      _showMessage(result['message'], Colors.green);
+      _showMessage('auth.account_created'.tr(), Colors.green);
 
       Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
@@ -61,7 +62,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       });
     } else {
-      _showMessage(result['message'], Colors.red);
+      _showMessage(
+        result['message']?.toString() ?? 'common.error'.tr(),
+        Colors.red,
+      );
     }
   }
 
@@ -93,8 +97,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Sign Up",
+              Text(
+                'auth.create_account'.tr(),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -104,21 +108,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 30),
 
               _buildTextField(
-                "Email",
-                "Nhập email",
+                'auth.email'.tr(),
+                'auth.email'.tr(),
                 controller: _emailController,
               ),
               const SizedBox(height: 20),
               _buildTextField(
-                "Password",
-                "********",
+                'auth.password'.tr(),
+                'auth.password'.tr(),
                 isPassword: true,
                 controller: _passwordController,
               ),
               const SizedBox(height: 20),
               _buildTextField(
-                "Confirm Password",
-                "********",
+                'auth.confirm_password'.tr(),
+                'auth.confirm_password'.tr(),
                 isPassword: true,
                 controller: _confirmPassController,
               ),
@@ -146,8 +150,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          "Sign Up",
+                      : Text(
+                          'auth.signup'.tr(),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -163,7 +167,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Already have account? ",
+                    '${'auth.have_account'.tr()} ',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   GestureDetector(
@@ -175,8 +179,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       );
                     },
-                    child: const Text(
-                      "Log in",
+                    child: Text(
+                      'auth.login'.tr(),
                       style: TextStyle(
                         color: Color(0xFF4CAF50),
                         fontWeight: FontWeight.bold,

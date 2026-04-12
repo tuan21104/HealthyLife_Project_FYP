@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'services/auth_service.dart';
@@ -36,6 +37,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     "Moderately Active",
     "Very Active",
   ];
+
+  String _activityLabel(String activity) {
+    switch (activity) {
+      case 'Sedentary':
+        return 'profile.activity_sedentary'.tr();
+      case 'Lightly Active':
+        return 'profile.activity_lightly_active'.tr();
+      case 'Moderately Active':
+        return 'profile.activity_moderately_active'.tr();
+      case 'Very Active':
+        return 'profile.activity_very_active'.tr();
+      default:
+        return activity;
+    }
+  }
+
+  String _genderLabel(String gender) {
+    switch (gender.toLowerCase()) {
+      case 'male':
+        return 'onboarding.male'.tr();
+      case 'female':
+        return 'onboarding.female'.tr();
+      case 'other':
+        return 'onboarding.other'.tr();
+      default:
+        return gender;
+    }
+  }
 
   dynamic _readUserValue(List<String> keys) {
     for (final key in keys) {
@@ -111,8 +140,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _heightController.text.isEmpty ||
         _weightController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Vui lòng không để trống thông tin!"),
+        SnackBar(
+          content: Text('onboarding.fill_all_fields'.tr()),
           backgroundColor: Colors.red,
         ),
       );
@@ -175,8 +204,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Cập nhật thành công!"),
+          SnackBar(
+            content: Text('onboarding.profile_updated'.tr()),
             backgroundColor: Colors.green,
           ),
         );
@@ -189,7 +218,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Lỗi: ${e.toString()}"),
+          content: Text('${'common.error'.tr()}: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -207,8 +236,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.grey),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Edit Profile",
+        title: Text(
+          'profile.edit_profile'.tr(),
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
       ),
@@ -219,8 +248,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildSectionHeader(
-                title: "Profile Photo",
-                subtitle: "Cập nhật ảnh đại diện để cá nhân hóa hồ sơ của bạn",
+                title: 'profile.profile_photo'.tr(),
+                subtitle: 'profile.profile_photo_subtitle'.tr(),
               ),
               const SizedBox(height: 14),
               _buildAvatarCard(),
@@ -228,9 +257,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 22),
 
               _buildSectionHeader(
-                title: "Personal Information",
-                subtitle:
-                    "Điền đầy đủ để hệ thống tính toán mục tiêu chính xác hơn",
+                title: 'profile.your_info'.tr(),
+                subtitle: 'profile.info_subtitle'.tr(),
               ),
               const SizedBox(height: 14),
               _buildFormCard(),
@@ -258,8 +286,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          "Save Changes",
+                      : Text(
+                          'common.save'.tr(),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -367,8 +395,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildLabel("Full Name"),
-          _buildTextField(controller: _nameController, hint: "Enter your name"),
+          _buildLabel('onboarding.name'.tr()),
+          _buildTextField(
+            controller: _nameController,
+            hint: 'profile.enter_name'.tr(),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -376,10 +407,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLabel("Height (cm)"),
+                    _buildLabel('onboarding.height'.tr()),
                     _buildTextField(
                       controller: _heightController,
-                      hint: "e.g. 170",
+                      hint: 'profile.height_example'.tr(),
                       isNumber: true,
                     ),
                   ],
@@ -390,10 +421,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLabel("Weight (kg)"),
+                    _buildLabel('onboarding.weight'.tr()),
                     _buildTextField(
                       controller: _weightController,
-                      hint: "e.g. 65",
+                      hint: 'profile.weight_example'.tr(),
                       isNumber: true,
                     ),
                   ],
@@ -402,25 +433,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildLabel("Gender"),
+          _buildLabel('profile.gender'.tr()),
           GestureDetector(
             onTap: _showGenderDialog,
-            child: _buildDropdownField(_selectedGender ?? ""),
+            child: _buildDropdownField(
+              _selectedGender == null ? '' : _genderLabel(_selectedGender!),
+            ),
           ),
           const SizedBox(height: 16),
-          _buildLabel("Activity Level"),
+          _buildLabel('profile.activity_level'.tr()),
           GestureDetector(
             onTap: _showActivityDialog,
-            child: _buildDropdownField(_selectedActivity ?? ""),
+            child: _buildDropdownField(
+              _selectedActivity == null
+                  ? ''
+                  : _activityLabel(_selectedActivity!),
+            ),
           ),
           const SizedBox(height: 16),
-          _buildLabel("Birth Date"),
+          _buildLabel('profile.birth_date'.tr()),
           GestureDetector(
             onTap: () => _selectDate(context),
             child: _buildDropdownField(
               _selectedDate != null
                   ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
-                  : "Select your birth date",
+                  : 'profile.select_birth_date'.tr(),
             ),
           ),
         ],
@@ -499,33 +536,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text(
-              "Profile Picture",
+            title: Text(
+              'profile.profile_photo'.tr(),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildRadioOption(
-                  "Choose from available avatars",
+                  'profile.avatar_choose_available'.tr(),
                   0,
                   selectedOption,
                   (val) => setStateSB(() => selectedOption = val),
                 ),
                 _buildRadioOption(
-                  "Choose from library",
+                  'profile.choose_from_library'.tr(),
                   1,
                   selectedOption,
                   (val) => setStateSB(() => selectedOption = val),
                 ),
                 _buildRadioOption(
-                  "Take photo",
+                  'profile.take_photo'.tr(),
                   2,
                   selectedOption,
                   (val) => setStateSB(() => selectedOption = val),
                 ),
                 _buildRadioOption(
-                  "Remove current picture",
+                  'profile.remove_current_picture'.tr(),
                   3,
                   selectedOption,
                   (val) => setStateSB(() => selectedOption = val),
@@ -550,8 +587,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       _currentAvatarUrl = null;
                     });
                 },
-                child: const Text(
-                  "OK",
+                child: Text(
+                  'common.ok'.tr(),
                   style: TextStyle(color: Color(0xFF4CAF50)),
                 ),
               ),
@@ -581,7 +618,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Choose Avatar"),
+        title: Text('profile.choose_avatar'.tr()),
         content: Wrap(
           spacing: 10,
           children: List.generate(
@@ -611,13 +648,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Activity Level"),
+        title: Text('profile.activity_level'.tr()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: _activities
               .map(
                 (act) => ListTile(
-                  title: Text(act),
+                  title: Text(_activityLabel(act)),
                   onTap: () {
                     setState(() => _selectedActivity = act);
                     Navigator.pop(context);
@@ -634,13 +671,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     ModalEffects.showScaleFadeDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Select Gender"),
+        title: Text('profile.gender'.tr()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: ["Male", "Female", "Other"]
               .map(
                 (g) => ListTile(
-                  title: Text(g),
+                  title: Text(_genderLabel(g)),
                   onTap: () {
                     setState(() => _selectedGender = g);
                     Navigator.pop(context);

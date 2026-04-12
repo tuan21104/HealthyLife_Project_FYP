@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'user_info_step1_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -9,7 +10,6 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -19,23 +19,23 @@ class WelcomeScreen extends StatelessWidget {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 24.0,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Spacer(flex: 2),
 
-                Image.asset(
-                  'assets/images/logo_green.png',
-                  height: 120,
-                ),
+                Image.asset('assets/images/logo_green.png', height: 120),
                 const SizedBox(height: 16),
 
-                const Text(
-                  "Healthy life\nApp",
+                Text(
+                  'app.title'.tr(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -45,10 +45,10 @@ class WelcomeScreen extends StatelessWidget {
 
                 const Spacer(flex: 1),
 
-                const Text(
-                  "Welcome to healthy life!",
+                Text(
+                  'onboarding.welcome'.tr(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -57,7 +57,7 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 Text(
-                  "To offer our best service we need\nmore information from you.",
+                  'onboarding.welcome_subtitle'.tr(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -76,7 +76,8 @@ class WelcomeScreen extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => UserInfoStep1Screen(email: email),
+                          builder: (context) =>
+                              UserInfoStep1Screen(email: email),
                         ),
                       );
                     },
@@ -87,9 +88,9 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      "Let's get started",
-                      style: TextStyle(
+                    child: Text(
+                      'onboarding.get_started'.tr(),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,

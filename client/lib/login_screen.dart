@@ -4,6 +4,7 @@ import 'signup_screen.dart';
 import 'welcome_screen.dart';
 import 'main_screen.dart';
 import 'forgot_password_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class LoginScreen extends StatefulWidget {
   final String initialEmail;
@@ -39,7 +40,10 @@ class _LoginScreenState extends State<LoginScreen> {
     String password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      _showMessage("Vui lòng nhập Email và Mật khẩu", Colors.red);
+      _showMessage(
+        "${'common.warning'.tr()}: ${'auth.email'.tr()} & ${'auth.password'.tr()}",
+        Colors.red,
+      );
       return;
     }
 
@@ -53,7 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      _showMessage("Đăng nhập thành công!", Colors.green);
+      _showMessage(
+        "${'auth.login'.tr()} ${'common.success'.tr().toLowerCase()}!",
+        Colors.green,
+      );
 
       // Bắt cờ hasProfile từ Backend gửi về
       bool hasProfile = result['hasProfile'] ?? false;
@@ -72,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (hasProfile) {
           // --- NHÁNH 1: TÀI KHOẢN CŨ (Đã có thông tin chiều cao/cân nặng) ---
           _showMessage(
-            "Chào mừng trở lại! (Sẽ chuyển thẳng vào Trang chủ)",
+            "${'common.success'.tr()} - ${'auth.login'.tr()}",
             Colors.blue,
           );
 
@@ -120,11 +127,11 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  "Log In",
-                  style: TextStyle(
+                  'auth.login'.tr(),
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
@@ -133,16 +140,16 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 30),
 
-              _buildLabel("Email"),
+              _buildLabel('auth.email'.tr()),
               const SizedBox(height: 8),
               TextField(
                 controller: _emailController,
-                decoration: _inputDecoration("Nhập email của bạn"),
+                decoration: _inputDecoration('auth.email'.tr()),
               ),
 
               const SizedBox(height: 20),
 
-              _buildLabel("Password"),
+              _buildLabel('auth.password'.tr()),
               const SizedBox(height: 8),
               TextField(
                 controller: _passwordController,
@@ -172,8 +179,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   },
-                  child: const Text(
-                    'Quên mật khẩu?',
+                  child: Text(
+                    'auth.forgot_password'.tr(),
                     style: TextStyle(
                       color: Color(0xFF4CAF50),
                       fontWeight: FontWeight.w700,
@@ -205,9 +212,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          "Log In",
-                          style: TextStyle(
+                      : Text(
+                          'auth.login'.tr(),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -221,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Don't have an account? ",
+                    '${'auth.no_account'.tr()} ',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   GestureDetector(
@@ -231,8 +238,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         builder: (context) => const SignUpScreen(),
                       ),
                     ),
-                    child: const Text(
-                      "Sign up",
+                    child: Text(
+                      'auth.signup'.tr(),
                       style: TextStyle(
                         color: Color(0xFF4CAF50),
                         fontWeight: FontWeight.bold,

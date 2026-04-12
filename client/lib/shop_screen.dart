@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -37,11 +38,11 @@ class _ShopScreenState extends State<ShopScreen> {
       TextEditingController();
 
   final List<Map<String, dynamic>> _categoryTabs = const [
-    {'key': 'all', 'label': 'All', 'icon': Icons.apps_rounded},
-    {'key': 'food', 'label': 'Foods', 'icon': Icons.restaurant_rounded},
+    {'key': 'all', 'labelKey': 'shop.all', 'icon': Icons.apps_rounded},
+    {'key': 'food', 'labelKey': 'shop.foods', 'icon': Icons.restaurant_rounded},
     {
       'key': 'equipment',
-      'label': 'Equipment',
+      'labelKey': 'shop.equipment',
       'icon': Icons.fitness_center_rounded,
     },
   ];
@@ -101,9 +102,11 @@ class _ShopScreenState extends State<ShopScreen> {
     if (address.trim().isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vui lòng nhập địa chỉ giao hàng'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(
+              '${'common.warning'.tr()}: ${'shop.delivery_address'.tr()}',
+            ),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -119,7 +122,7 @@ class _ShopScreenState extends State<ShopScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Không tìm thấy địa chỉ: $address'),
+              content: Text('${'shop.delivery_address'.tr()}: $address'),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -153,7 +156,7 @@ class _ShopScreenState extends State<ShopScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
+            content: Text('${'common.error'.tr()}: ${e.toString()}'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -211,7 +214,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                   sliver: SliverToBoxAdapter(
-                    child: _buildSectionHeader('Top Categories'),
+                    child: _buildSectionHeader('shop.top_categories'.tr()),
                   ),
                 ),
                 SliverPadding(
@@ -221,7 +224,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                   sliver: SliverToBoxAdapter(
-                    child: _buildSectionHeader('Top Discount'),
+                    child: _buildSectionHeader('shop.top_discount'.tr()),
                   ),
                 ),
                 SliverPadding(
@@ -231,7 +234,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
                   sliver: SliverToBoxAdapter(
-                    child: _buildSectionHeader('Popular items'),
+                    child: _buildSectionHeader('shop.popular_items'.tr()),
                   ),
                 ),
                 SliverPadding(
@@ -278,8 +281,8 @@ class _ShopScreenState extends State<ShopScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Current location',
+              Text(
+                'shop.title'.tr(),
                 style: TextStyle(fontSize: 12, color: _mutedText),
               ),
               Text(
@@ -387,11 +390,14 @@ class _ShopScreenState extends State<ShopScreen> {
       child: TextField(
         controller: _searchController,
         textAlignVertical: TextAlignVertical.center,
-        decoration: const InputDecoration(
-          hintText: 'Search goods, dishes or etc',
+        decoration: InputDecoration(
+          hintText: 'shop.search'.tr(),
           border: InputBorder.none,
-          prefixIcon: Icon(Icons.search, color: _mutedText),
-          contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+          prefixIcon: const Icon(Icons.search, color: _mutedText),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 13,
+          ),
         ),
       ),
     );
@@ -453,8 +459,8 @@ class _ShopScreenState extends State<ShopScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Claim your\ndiscount 30%\ndaily now!',
+                        Text(
+                          'shop.claim_discount'.tr(),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -472,8 +478,8 @@ class _ShopScreenState extends State<ShopScreen> {
                             color: Colors.black,
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: const Text(
-                            'Order now',
+                          child: Text(
+                            'shop.place_order'.tr(),
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -509,7 +515,7 @@ class _ShopScreenState extends State<ShopScreen> {
         TextButton(
           onPressed: () => setState(() => _selectedCategory = 'all'),
           style: TextButton.styleFrom(foregroundColor: _mutedText),
-          child: const Text('See all'),
+          child: Text('common.add'.tr()),
         ),
       ],
     );
@@ -551,7 +557,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    category['label'] as String,
+                    (category['labelKey'] as String).tr(),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 12,
@@ -721,16 +727,19 @@ class _ShopScreenState extends State<ShopScreen> {
                   ),
                   GestureDetector(
                     onTap: () => _addToCart(product),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: _primaryGreen,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        size: 16,
-                        color: Colors.white,
+                    child: Tooltip(
+                      message: 'shop.add_to_cart'.tr(),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: _primaryGreen,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -750,7 +759,7 @@ class _ShopScreenState extends State<ShopScreen> {
       child: Column(
         children: [
           _buildScreenHeader(
-            title: 'Cart',
+            title: 'shop.cart'.tr(),
             leading: Icons.arrow_back,
             onBack: () => setState(() => _currentStep = 0),
           ),
@@ -776,8 +785,8 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
-                            'Giỏ hàng đang trống',
+                          Text(
+                            'shop.empty_cart'.tr(),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -902,7 +911,7 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
           _buildActionBar(
             leftTitle: _formatVnd(subtotal),
-            rightLabel: 'Proceed to pay',
+            rightLabel: 'shop.checkout'.tr(),
             onTap: _cartItems.isEmpty
                 ? () {}
                 : () => setState(() => _currentStep = 2),
@@ -923,7 +932,7 @@ class _ShopScreenState extends State<ShopScreen> {
       child: Column(
         children: [
           _buildScreenHeader(
-            title: 'Checkout',
+            title: 'shop.checkout'.tr(),
             leading: Icons.arrow_back,
             onBack: () => setState(() => _currentStep = 1),
           ),
@@ -933,13 +942,13 @@ class _ShopScreenState extends State<ShopScreen> {
               children: [
                 _buildCheckoutCard(
                   icon: Icons.location_on_outlined,
-                  label: 'Deliver to',
+                  label: 'shop.delivery_address'.tr(),
                   child: _buildDeliveryAddressCard(),
                 ),
                 const SizedBox(height: 14),
                 _buildCheckoutCard(
                   icon: Icons.credit_card_outlined,
-                  label: 'Payment from',
+                  label: 'shop.payment_from'.tr(),
                   child: const Text(
                     'VCB 9947890196',
                     style: TextStyle(
@@ -950,19 +959,26 @@ class _ShopScreenState extends State<ShopScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                _buildSummaryRow('Subtotal', _formatVnd(subtotal)),
+                _buildSummaryRow('shop.subtotal'.tr(), _formatVnd(subtotal)),
                 const SizedBox(height: 10),
                 _buildSummaryRow(
-                  'Distance',
+                  'shop.distance'.tr(),
                   '${distanceKm.toStringAsFixed(2)} km',
                 ),
                 const SizedBox(height: 10),
-                _buildSummaryRow('Shipping Fee', '+${_formatVnd(shippingFee)}'),
+                _buildSummaryRow(
+                  'shop.shipping_fee'.tr(),
+                  '+${_formatVnd(shippingFee)}',
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(height: 1),
                 ),
-                _buildSummaryRow('Total', _formatVnd(total), bold: true),
+                _buildSummaryRow(
+                  'shop.total'.tr(),
+                  _formatVnd(total),
+                  bold: true,
+                ),
                 const SizedBox(height: 22),
                 Container(
                   padding: const EdgeInsets.all(18),
@@ -973,8 +989,8 @@ class _ShopScreenState extends State<ShopScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Text(
-                        'Scan QR to pay',
+                      Text(
+                        'shop.scan_qr_to_pay'.tr(),
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           color: _darkText,
@@ -1011,8 +1027,8 @@ class _ShopScreenState extends State<ShopScreen> {
                           icon: const Icon(Icons.attachment_outlined),
                           label: Text(
                             _billImage == null
-                                ? 'Attach bill image'
-                                : 'Bill image attached',
+                                ? 'shop.attach_bill_image'.tr()
+                                : 'shop.bill_image_attached'.tr(),
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _primaryGreen,
@@ -1038,7 +1054,7 @@ class _ShopScreenState extends State<ShopScreen> {
                         TextButton.icon(
                           onPressed: () => setState(() => _billImage = null),
                           icon: const Icon(Icons.close, size: 18),
-                          label: const Text('Remove bill'),
+                          label: Text('shop.remove'.tr()),
                           style: TextButton.styleFrom(
                             foregroundColor: _mutedText,
                           ),
@@ -1052,7 +1068,7 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
           _buildActionBar(
             leftTitle: _formatVnd(total),
-            rightLabel: 'Place order',
+            rightLabel: 'shop.place_order'.tr(),
             isLoading: _isSubmitting,
             onTap: _placeOrder,
           ),
@@ -1085,8 +1101,8 @@ class _ShopScreenState extends State<ShopScreen> {
               child: const Icon(Icons.check, color: Colors.white, size: 32),
             ),
             const SizedBox(height: 26),
-            const Text(
-              'Yay! Your order\nhas been placed.',
+            Text(
+              'shop.order_success'.tr(),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 30,
@@ -1098,13 +1114,13 @@ class _ShopScreenState extends State<ShopScreen> {
             const SizedBox(height: 28),
             _buildSuccessDetail(
               Icons.access_time,
-              'Estimated time',
+              'shop.estimated_time'.tr(),
               '${_estimatedTimeMins} mins',
             ),
             const SizedBox(height: 12),
             _buildSuccessDetail(
               Icons.location_on_outlined,
-              'Deliver to',
+              'shop.delivered_to'.tr(),
               _lastDeliveredAddress.isEmpty
                   ? _addressController.text
                   : _lastDeliveredAddress,
@@ -1112,7 +1128,7 @@ class _ShopScreenState extends State<ShopScreen> {
             const SizedBox(height: 12),
             _buildSuccessDetail(
               Icons.credit_card_outlined,
-              'Amount Paid',
+              'shop.total_paid'.tr(),
               _formatVnd(_lastPaidAmount),
             ),
             const Spacer(flex: 3),
@@ -1128,8 +1144,8 @@ class _ShopScreenState extends State<ShopScreen> {
                   elevation: 0,
                 ),
                 onPressed: () => setState(() => _currentStep = 0),
-                child: const Text(
-                  'Back to main homepage',
+                child: Text(
+                  'shop.back_to_home'.tr(),
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -1148,7 +1164,7 @@ class _ShopScreenState extends State<ShopScreen> {
       child: Column(
         children: [
           _buildScreenHeader(
-            title: 'Orders',
+            title: 'shop.order_history'.tr(),
             leading: Icons.arrow_back,
             onBack: () => setState(() => _currentStep = 0),
           ),
@@ -1178,8 +1194,8 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                           ),
                           const SizedBox(height: 18),
-                          const Text(
-                            'Chưa có đơn nào',
+                          Text(
+                            'shop.no_orders'.tr(),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -1187,8 +1203,8 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Các đơn đã mua sẽ xuất hiện ở đây.',
+                          Text(
+                            'shop.orders_will_appear'.tr(),
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 13, color: _mutedText),
                           ),
@@ -1278,7 +1294,9 @@ class _ShopScreenState extends State<ShopScreen> {
                                           ),
                                         ),
                                         child: Text(
-                                          isFood ? 'Food' : 'Equipment',
+                                          isFood
+                                              ? 'shop.foods'.tr()
+                                              : 'shop.equipment'.tr(),
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
@@ -1292,7 +1310,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    '${_formatVnd(totalVnd)} · x$quantity',
+                                    '${_formatVnd(totalVnd)} · ${'shop.quantity'.tr()}: $quantity',
                                     style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
@@ -1561,34 +1579,34 @@ class _ShopScreenState extends State<ShopScreen> {
         selectedFontSize: 12,
         unselectedFontSize: 12,
         onTap: _navigateFromBottomNav,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Padding(
+            icon: const Padding(
               padding: EdgeInsets.only(bottom: 4),
               child: Icon(Icons.home_filled),
             ),
-            label: 'Home',
+            label: 'nav.home'.tr(),
           ),
           BottomNavigationBarItem(
-            icon: Padding(
+            icon: const Padding(
               padding: EdgeInsets.only(bottom: 4),
               child: Icon(Icons.pie_chart),
             ),
-            label: 'Diaries',
+            label: 'nav.diaries'.tr(),
           ),
           BottomNavigationBarItem(
-            icon: Padding(
+            icon: const Padding(
               padding: EdgeInsets.only(bottom: 4),
               child: Icon(Icons.settings),
             ),
-            label: 'Settings',
+            label: 'nav.settings'.tr(),
           ),
           BottomNavigationBarItem(
-            icon: Padding(
+            icon: const Padding(
               padding: EdgeInsets.only(bottom: 4),
               child: Icon(Icons.person),
             ),
-            label: 'Profile',
+            label: 'nav.profile'.tr(),
           ),
         ],
       ),
@@ -1608,7 +1626,11 @@ class _ShopScreenState extends State<ShopScreen> {
     final address = _addressController.text.trim();
     if (address.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập địa chỉ nhận hàng.')),
+        SnackBar(
+          content: Text(
+            '${'common.warning'.tr()}: ${'shop.delivery_address'.tr()}',
+          ),
+        ),
       );
       return;
     }
@@ -1642,8 +1664,7 @@ class _ShopScreenState extends State<ShopScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                response?['message']?.toString() ??
-                    'Không thể đặt hàng lúc này.',
+                response?['message']?.toString() ?? 'common.error'.tr(),
               ),
             ),
           );
@@ -1663,9 +1684,9 @@ class _ShopScreenState extends State<ShopScreen> {
       });
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể kết nối tới Server.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('common.error'.tr())));
       }
     } finally {
       if (mounted) {
@@ -1860,11 +1881,11 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _buildDeliveryAddressCard() {
     if (_isCalculatingShipping) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
@@ -1872,10 +1893,10 @@ class _ShopScreenState extends State<ShopScreen> {
                 color: _primaryGreen,
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Text(
-              'Đang tính toán phí ship...',
-              style: TextStyle(
+              '${'common.loading'.tr()} ${'shop.shipping_fee'.tr().toLowerCase()}...',
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: _mutedText,
@@ -1891,7 +1912,7 @@ class _ShopScreenState extends State<ShopScreen> {
       children: [
         Text(
           _addressController.text.trim().isEmpty
-              ? 'Chưa có địa chỉ giao hàng'
+              ? 'shop.delivery_address'.tr()
               : _addressController.text.trim(),
           style: const TextStyle(
             fontSize: 14,
@@ -1904,7 +1925,7 @@ class _ShopScreenState extends State<ShopScreen> {
         TextButton.icon(
           onPressed: _showAddressEditDialog,
           icon: const Icon(Icons.edit_rounded, size: 18),
-          label: const Text('Chỉnh sửa'),
+          label: Text('common.edit'.tr()),
           style: TextButton.styleFrom(
             foregroundColor: _darkText,
             padding: EdgeInsets.zero,
@@ -1923,8 +1944,8 @@ class _ShopScreenState extends State<ShopScreen> {
       builder: (BuildContext context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Chỉnh sửa địa chỉ giao hàng',
+        title: Text(
+          'shop.delivery_address'.tr(),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -1941,7 +1962,7 @@ class _ShopScreenState extends State<ShopScreen> {
             color: _darkText,
           ),
           decoration: InputDecoration(
-            hintText: 'Nhập địa chỉ giao hàng',
+            hintText: 'shop.delivery_address'.tr(),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: _softBorder),
@@ -1956,8 +1977,8 @@ class _ShopScreenState extends State<ShopScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Hủy',
+            child: Text(
+              'common.cancel'.tr(),
               style: TextStyle(color: _mutedText, fontWeight: FontWeight.w600),
             ),
           ),
@@ -1969,8 +1990,8 @@ class _ShopScreenState extends State<ShopScreen> {
                 _calculateShipping(newAddress);
               }
             },
-            child: const Text(
-              'Xác nhận',
+            child: Text(
+              'common.confirm'.tr(),
               style: TextStyle(
                 color: _primaryGreen,
                 fontWeight: FontWeight.w800,

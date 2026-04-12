@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,46 +33,64 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   final List<_ExpenseCategoryItem> _categories = const [
     _ExpenseCategoryItem(
-      title: 'Food & Drink',
+      value: 'Food & Drink',
+      labelKey: 'expense.food_drink',
       icon: Icons.restaurant_rounded,
       color: Color(0xFFEF8A5B),
     ),
     _ExpenseCategoryItem(
-      title: 'Shopping',
+      value: 'Shopping',
+      labelKey: 'expense.shopping',
       icon: Icons.shopping_bag_rounded,
       color: Color(0xFF6C8CFF),
     ),
     _ExpenseCategoryItem(
-      title: 'Transport',
+      value: 'Transport',
+      labelKey: 'expense.transport',
       icon: Icons.directions_car_rounded,
       color: Color(0xFF4DA3FF),
     ),
     _ExpenseCategoryItem(
-      title: 'Bills',
+      value: 'Bills',
+      labelKey: 'expense.bills',
       icon: Icons.receipt_long_rounded,
       color: Color(0xFF9C6BFF),
     ),
     _ExpenseCategoryItem(
-      title: 'Health',
+      value: 'Health',
+      labelKey: 'expense.health',
       icon: Icons.favorite_rounded,
       color: Color(0xFFFF6B8B),
     ),
     _ExpenseCategoryItem(
-      title: 'Entertainment',
+      value: 'Entertainment',
+      labelKey: 'expense.entertainment',
       icon: Icons.movie_rounded,
       color: Color(0xFFFFB84D),
     ),
     _ExpenseCategoryItem(
-      title: 'Education',
+      value: 'Education',
+      labelKey: 'expense.education',
       icon: Icons.school_rounded,
       color: Color(0xFF4BBE9A),
     ),
     _ExpenseCategoryItem(
-      title: 'Others',
+      value: 'Others',
+      labelKey: 'expense.others',
       icon: Icons.grid_view_rounded,
       color: Color(0xFF8A98A8),
     ),
   ];
+
+  String _categoryLabel(String? categoryValue) {
+    if (categoryValue == null || categoryValue.isEmpty) {
+      return 'expense.category'.tr();
+    }
+    for (final category in _categories) {
+      if (category.value == categoryValue) return category.labelKey.tr();
+    }
+    return categoryValue;
+  }
 
   @override
   void initState() {
@@ -157,9 +176,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      helpText: 'Chọn ngày chi tiêu',
-      confirmText: 'Chọn',
-      cancelText: 'Hủy',
+      helpText: 'expense.pick_date'.tr(),
+      confirmText: 'common.ok'.tr(),
+      cancelText: 'common.cancel'.tr(),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -206,21 +225,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (_currentUserId.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Vui lòng đăng nhập lại!')));
+      ).showSnackBar(SnackBar(content: Text('auth.relogin_required'.tr())));
       return;
     }
 
     if (_amountValue <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('expense.invalid_amount'.tr())));
       return;
     }
 
     if (_selectedCategory == null || _selectedCategory!.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Vui lòng chọn danh mục!')));
+      ).showSnackBar(SnackBar(content: Text('expense.select_category'.tr())));
       return;
     }
 
@@ -249,12 +268,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (success) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Đã thêm thành công!')));
+      ).showSnackBar(SnackBar(content: Text('common.success'.tr())));
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message.isNotEmpty ? message : 'Vui lòng thử lại!'),
+          content: Text(message.isNotEmpty ? message : 'common.retry'.tr()),
         ),
       );
     }
@@ -274,8 +293,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         elevation: 0,
         foregroundColor: Colors.black87,
         centerTitle: false,
-        title: const Text(
-          'Add Expense',
+        title: Text(
+          'expense.add_transaction'.tr(),
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -328,12 +347,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                               ),
                             ),
                             const SizedBox(width: 14),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Thêm chi tiêu mới',
+                                    'expense.add_transaction'.tr(),
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w700,
@@ -341,7 +360,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'Nhập số tiền, chọn danh mục và lưu lại nhanh chóng.',
+                                    'expense.quick_add_subtitle'.tr(),
                                     style: TextStyle(color: Colors.black54),
                                   ),
                                 ],
@@ -351,7 +370,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'Số tiền',
+                          'expense.total'.tr(),
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -409,7 +428,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Hiển thị: $amountText',
+                          '${'expense.display'.tr()}: $amountText',
                           style: const TextStyle(color: Colors.black54),
                         ),
                       ],
@@ -435,7 +454,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         _ActionRow(
                           icon: Icons.calendar_month_rounded,
                           iconColor: const Color(0xFF4DA3FF),
-                          title: 'Ngày tháng',
+                          title: 'expense.date'.tr(),
                           value: expenseDateLabel,
                           onTap: _pickDate,
                         ),
@@ -443,8 +462,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         _ActionRow(
                           icon: Icons.category_rounded,
                           iconColor: const Color(0xFFEF8A5B),
-                          title: 'Danh mục',
-                          value: _selectedCategory ?? 'Chọn danh mục',
+                          title: 'expense.category'.tr(),
+                          value: _selectedCategory == null
+                              ? 'expense.select_category'.tr()
+                              : _categoryLabel(_selectedCategory),
                           isPlaceholder: _selectedCategory == null,
                           onTap: _openCategorySheet,
                         ),
@@ -459,11 +480,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             controller: _noteController,
                             maxLines: 4,
                             textInputAction: TextInputAction.newline,
-                            decoration: const InputDecoration(
-                              hintText: 'Ghi chú',
+                            decoration: InputDecoration(
+                              hintText: 'expense.note'.tr(),
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.all(18),
-                              prefixIcon: Icon(Icons.edit_note_rounded),
+                              contentPadding: const EdgeInsets.all(18),
+                              prefixIcon: const Icon(Icons.edit_note_rounded),
                             ),
                           ),
                         ),
@@ -497,8 +518,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                 ),
                               ),
                             )
-                          : const Text(
-                              'Lưu',
+                          : Text(
+                              'common.save'.tr(),
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
@@ -524,12 +545,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 }
 
 class _ExpenseCategoryItem {
-  final String title;
+  final String value;
+  final String labelKey;
   final IconData icon;
   final Color color;
 
   const _ExpenseCategoryItem({
-    required this.title,
+    required this.value,
+    required this.labelKey,
     required this.icon,
     required this.color,
   });
@@ -645,13 +668,13 @@ class ModalBottomSheetHelper {
                   ),
                 ),
                 const SizedBox(height: 18),
-                const Text(
-                  'Chọn danh mục',
+                Text(
+                  'expense.category'.tr(),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Chọn một nhóm phù hợp cho khoản chi tiêu này.',
+                Text(
+                  'expense.pick_category_subtitle'.tr(),
                   style: TextStyle(color: Colors.black54),
                 ),
                 const SizedBox(height: 18),
@@ -669,7 +692,7 @@ class ModalBottomSheetHelper {
                         ),
                     itemBuilder: (context, index) {
                       final category = categories[index];
-                      final isSelected = category.title == selectedCategory;
+                      final isSelected = category.value == selectedCategory;
 
                       return Material(
                         color: isSelected
@@ -678,7 +701,7 @@ class ModalBottomSheetHelper {
                         borderRadius: BorderRadius.circular(20),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(20),
-                          onTap: () => Navigator.pop(context, category.title),
+                          onTap: () => Navigator.pop(context, category.value),
                           child: Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(20),
@@ -712,7 +735,7 @@ class ModalBottomSheetHelper {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        category.title,
+                                        category.labelKey.tr(),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
@@ -723,8 +746,8 @@ class ModalBottomSheetHelper {
                                       const SizedBox(height: 4),
                                       Text(
                                         isSelected
-                                            ? 'Đang chọn'
-                                            : 'Chạm để chọn',
+                                            ? 'common.confirm'.tr()
+                                            : 'common.select'.tr(),
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: isSelected

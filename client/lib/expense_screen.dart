@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -251,6 +252,29 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         );
   }
 
+  String _translateCategory(String category) {
+    switch (category) {
+      case 'Food & Drink':
+        return 'expense.food_drink'.tr();
+      case 'Transport':
+        return 'expense.transport'.tr();
+      case 'Shopping':
+        return 'expense.shopping'.tr();
+      case 'Bills':
+        return 'expense.bills'.tr();
+      case 'Health':
+        return 'expense.health'.tr();
+      case 'Entertainment':
+        return 'expense.entertainment'.tr();
+      case 'Education':
+        return 'expense.education'.tr();
+      case 'Others':
+        return 'expense.others'.tr();
+      default:
+        return category;
+    }
+  }
+
   String _formatDate(DateTime date) {
     return DateFormat('dd/MM/yyyy').format(date);
   }
@@ -316,9 +340,12 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         backgroundColor: _primaryGreen,
         elevation: 0,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Thêm giao dịch',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        label: Text(
+          'expense.add_transaction'.tr(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: SafeArea(
@@ -394,9 +421,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
-            'Quản lý chi tiêu',
-            style: TextStyle(
+          Text(
+            'expense.title'.tr(),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -412,7 +439,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       children: [
         Expanded(
           child: _SummaryCard(
-            title: 'Tổng chi tiêu',
+            title: 'expense.total_expense'.tr(),
             value: _formatCurrency(_totalExpense),
             icon: Icons.payments_rounded,
             color: const Color(0xFFEF8A5B),
@@ -422,7 +449,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _SummaryCard(
-            title: 'Ngân sách còn lại',
+            title: 'expense.remaining_budget'.tr(),
             value: _formatCurrency(_remainingBudget),
             icon: Icons.savings_rounded,
             color: const Color(0xFF4BBE9A),
@@ -454,9 +481,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Biểu đồ danh mục',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          Text(
+            'expense.chart_by_category'.tr(),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -485,9 +512,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'Tổng',
-                            style: TextStyle(
+                          Text(
+                            'expense.total'.tr(),
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Colors.black54,
                             ),
@@ -512,10 +539,13 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         color: const Color(0xFFF7FAF8),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: const Center(
+      child: Center(
         child: Text(
-          'Chưa có dữ liệu chi tiêu',
-          style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600),
+          'expense.no_data'.tr(),
+          style: const TextStyle(
+            color: Colors.black45,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -530,7 +560,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       children: entries.map((entry) {
         final meta = _metaForCategory(entry.key);
         return _LegendChip(
-          label: entry.key,
+          label: _translateCategory(entry.key),
           value: _formatCurrency(entry.value),
           color: meta.color,
           percent: _percentageForCategory(entry.value),
@@ -560,12 +590,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Danh sách chi tiêu',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              Text(
+                'expense.expense_list'.tr(),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               Text(
-                '${_expenses.length} mục',
+                'expense.item_count'.tr(
+                  namedArgs: {'count': _expenses.length.toString()},
+                ),
                 style: const TextStyle(color: Colors.black54),
               ),
             ],
@@ -607,7 +642,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              expense.category,
+                              _translateCategory(expense.category),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(

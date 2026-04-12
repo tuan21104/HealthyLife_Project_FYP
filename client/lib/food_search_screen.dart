@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/auth_service.dart';
 import 'food_detail_screen.dart';
@@ -200,8 +201,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Sửa Món Ăn Của Bạn",
+                        Text(
+                          'food.edit_my_food'.tr(),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -229,14 +230,14 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                     // ==========================================================
                     TextField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: "Tên món ăn (*)",
+                      decoration: InputDecoration(
+                        labelText: '${'food.title'.tr()} (*)',
                       ),
                     ),
                     TextField(
                       controller: amountCtrl,
-                      decoration: const InputDecoration(
-                        labelText: "Định lượng (vd: 100g, 1 bát)",
+                      decoration: InputDecoration(
+                        labelText: 'food.amount'.tr(),
                       ),
                     ),
                     Row(
@@ -245,8 +246,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: caloCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Calories (*)",
+                            decoration: InputDecoration(
+                              labelText: '${'food.calories'.tr()} (*)',
                             ),
                           ),
                         ),
@@ -255,8 +256,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: proteinCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Protein (g)",
+                            decoration: InputDecoration(
+                              labelText:
+                                  '${'food.protein'.tr()} (${'food.gram'.tr()})',
                             ),
                           ),
                         ),
@@ -268,8 +270,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: fatCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Fat (g)",
+                            decoration: InputDecoration(
+                              labelText:
+                                  '${'food.fat'.tr()} (${'food.gram'.tr()})',
                             ),
                           ),
                         ),
@@ -278,8 +281,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: carbCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Carbs (g)",
+                            decoration: InputDecoration(
+                              labelText:
+                                  '${'food.carbs'.tr()} (${'food.gram'.tr()})',
                             ),
                           ),
                         ),
@@ -329,17 +333,15 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           if (success) {
                             await _loadPersonalData(); // REFRESH MY FOODS LIST IN TAB
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text("Đã sửa món ăn thành công!"),
+                              SnackBar(
+                                content: Text('common.success'.tr()),
                                 backgroundColor: Colors.green,
                               ),
                             );
                           } else {
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  "Sửa thất bại! Hãy kiểm tra Server.",
-                                ),
+                              SnackBar(
+                                content: Text('common.error'.tr()),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -347,8 +349,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
 
                           setState(() => _isLoading = false);
                         },
-                        child: const Text(
-                          "Cập nhật",
+                        child: Text(
+                          'common.save'.tr(),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -412,8 +414,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Tạo Món Ăn Của Bạn",
+                        Text(
+                          'food.create_my_food'.tr(),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -440,14 +442,14 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                     // ==========================================================
                     TextField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: "Tên món ăn (*)",
+                      decoration: InputDecoration(
+                        labelText: '${'food.title'.tr()} (*)',
                       ),
                     ),
                     TextField(
                       controller: amountCtrl,
-                      decoration: const InputDecoration(
-                        labelText: "Định lượng (vd: 100g, 1 bát)",
+                      decoration: InputDecoration(
+                        labelText: 'food.amount'.tr(),
                       ),
                     ),
                     Row(
@@ -456,8 +458,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: caloCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Calories (*)",
+                            decoration: InputDecoration(
+                              labelText: '${'food.calories'.tr()} (*)',
                             ),
                           ),
                         ),
@@ -466,8 +468,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: proteinCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Protein (g)",
+                            decoration: InputDecoration(
+                              labelText:
+                                  '${'food.protein'.tr()} (${'food.gram'.tr()})',
                             ),
                           ),
                         ),
@@ -479,8 +482,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: fatCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Fat (g)",
+                            decoration: InputDecoration(
+                              labelText:
+                                  '${'food.fat'.tr()} (${'food.gram'.tr()})',
                             ),
                           ),
                         ),
@@ -489,8 +493,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           child: TextField(
                             controller: carbCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Carbs (g)",
+                            decoration: InputDecoration(
+                              labelText:
+                                  '${'food.carbs'.tr()} (${'food.gram'.tr()})',
                             ),
                           ),
                         ),
@@ -540,8 +545,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                           if (success) {
                             await _loadPersonalData(); // REFRESH MY FOODS LIST IN TAB
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text("Đã lưu món ăn thành công!"),
+                              SnackBar(
+                                content: Text('common.success'.tr()),
                                 backgroundColor: Colors.green,
                               ),
                             );
@@ -549,10 +554,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                             // User must explicitly add it from My Foods or Search tabs. ---
                           } else {
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  "Lưu thất bại! Hãy kiểm tra Server.",
-                                ),
+                              SnackBar(
+                                content: Text('common.error'.tr()),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -560,8 +563,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
 
                           setState(() => _isLoading = false);
                         },
-                        child: const Text(
-                          "Lưu Món Ăn",
+                        child: Text(
+                          'food.add'.tr(),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -652,7 +655,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                                 Icons.camera_alt,
                                 color: Colors.green,
                               ),
-                              title: const Text('Chụp ảnh mới'),
+                              title: Text('profile.take_photo'.tr()),
                               onTap: () async {
                                 Navigator.pop(context);
                                 final pickedFile = await _picker.pickImage(
@@ -671,7 +674,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                                 Icons.photo_library,
                                 color: Colors.blue,
                               ),
-                              title: const Text('Chọn ảnh từ Thư viện'),
+                              title: Text('profile.choose_from_library'.tr()),
                               onTap: () async {
                                 Navigator.pop(context);
                                 final pickedFile = await _picker.pickImage(
@@ -728,7 +731,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                             Icons.camera_alt,
                             color: Colors.green,
                           ),
-                          title: const Text('Chụp ảnh mới'),
+                          title: Text('profile.take_photo'.tr()),
                           onTap: () async {
                             Navigator.pop(context);
                             final pickedFile = await _picker.pickImage(
@@ -747,7 +750,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                             Icons.photo_library,
                             color: Colors.blue,
                           ),
-                          title: const Text('Chọn ảnh từ Thư viện'),
+                          title: Text('profile.choose_from_library'.tr()),
                           onTap: () async {
                             Navigator.pop(context);
                             final pickedFile = await _picker.pickImage(
@@ -782,7 +785,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              "Đính kèm ảnh",
+              'food.attach_image'.tr(),
               style: TextStyle(color: Colors.grey[600], fontSize: 13),
             ),
           ],
@@ -854,26 +857,28 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Tạo Công Thức Mới",
+                Text(
+                  'food.create_recipe'.tr(),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: "Tên công thức (*)",
+                  decoration: InputDecoration(
+                    labelText: 'food.recipe_name'.tr(),
                   ),
                 ),
                 TextField(
                   controller: descCtrl,
-                  decoration: const InputDecoration(labelText: "Mô tả ngắn"),
+                  decoration: InputDecoration(
+                    labelText: 'food.description'.tr(),
+                  ),
                 ),
                 TextField(
                   controller: caloCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Tổng Calories (*)",
+                  decoration: InputDecoration(
+                    labelText: 'food.total_calories'.tr(),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -907,15 +912,15 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                       if (success) {
                         await _loadPersonalData();
                         messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text("Đã lưu công thức thành công!"),
+                          SnackBar(
+                            content: Text('common.success'.tr()),
                             backgroundColor: Colors.green,
                           ),
                         );
                       } else {
                         messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text("Lưu thất bại! Hãy kiểm tra Server."),
+                          SnackBar(
+                            content: Text('common.error'.tr()),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -923,8 +928,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
 
                       setState(() => _isLoading = false);
                     },
-                    child: const Text(
-                      "Lưu Công Thức",
+                    child: Text(
+                      'common.save'.tr(),
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -946,8 +951,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
   void _deleteMyFood(dynamic item) {
     if (item['userId'] != _currentUserId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Lỗi: Bạn chỉ được xóa món ăn của riêng mình."),
+        SnackBar(
+          content: Text('common.error'.tr()),
           backgroundColor: Colors.orange,
         ),
       );
@@ -964,15 +969,18 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
       context: context,
       // 2. Đổi tên biến này thành dialogContext để không bị nhầm lẫn với context của màn hình
       builder: (dialogContext) => AlertDialog(
-        title: const Text("Xóa Món Ăn"),
+        title: Text('common.delete'.tr()),
         content: Text(
-          "Bạn có chắc chắn muốn xóa '$foodName' khỏi 'Món Ăn Của Bạn'? Hành động này không thể hoàn tác.",
+          'food.delete_confirm'.tr(namedArgs: {'name': '$foodName'}),
         ),
         actions: [
           TextButton(
             onPressed: () =>
                 Navigator.pop(dialogContext), // Đóng dialog không xóa
-            child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'common.cancel'.tr(),
+              style: const TextStyle(color: Colors.grey),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -990,15 +998,15 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                 await _loadPersonalData(); // REFRESH MY FOODS LIST IN TAB
                 // 3. DÙNG BIẾN MESSENGER ĐÃ CHỐT ĐỂ HIỆN THÔNG BÁO
                 messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text("Đã xóa món ăn thành công!"),
+                  SnackBar(
+                    content: Text('common.success'.tr()),
                     backgroundColor: Colors.green,
                   ),
                 );
               } else {
                 messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text("Xóa thất bại! Hãy kiểm tra Server."),
+                  SnackBar(
+                    content: Text('common.error'.tr()),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -1006,8 +1014,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
 
               setState(() => _isLoading = false);
             },
-            child: const Text(
-              "Xóa",
+            child: Text(
+              'common.delete'.tr(),
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ),
@@ -1068,7 +1076,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                                 Icons.camera_alt,
                                 color: Colors.green,
                               ),
-                              title: const Text('Chụp ảnh mới'),
+                              title: Text('profile.take_photo'.tr()),
                               onTap: () {
                                 Navigator.pop(context);
                                 _processImageWithAI(ImageSource.camera);
@@ -1079,7 +1087,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                                 Icons.photo_library,
                                 color: Colors.blue,
                               ),
-                              title: const Text('Chọn ảnh từ Thư viện'),
+                              title: Text('profile.choose_from_library'.tr()),
                               onTap: () {
                                 Navigator.pop(context);
                                 _processImageWithAI(ImageSource.gallery);
@@ -1097,8 +1105,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    "Add image",
+                  child: Text(
+                    'food.add_image'.tr(),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1136,11 +1144,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
         return _buildExerciseEntry();
       case 3:
         // --- [FIX LỖI 1]: Giữ giao diện cũ cho Recipes (tạm thời) ---
-        return _buildPersonalList(
-          _recipesList,
-          "Chưa có công thức nào được lưu.",
-          false,
-        );
+        return _buildPersonalList(_recipesList, 'food.no_recipes'.tr(), false);
       default:
         return const SizedBox.shrink();
     }
@@ -1148,7 +1152,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
 
   // --- GIAO DIỆN NHẬP CALO TIÊU HAO (BÀI TẬP) ---
   Widget _buildExerciseEntry() {
-    final nameCtrl = TextEditingController(text: "Đạp xe");
+    final nameCtrl = TextEditingController(text: 'food.default_exercise'.tr());
     final caloCtrl = TextEditingController();
 
     return Padding(
@@ -1156,8 +1160,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Nhập Calo Tiêu Hao",
+          Text(
+            'food.exercise_entry_title'.tr(),
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -1165,15 +1169,15 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            "Nhập lượng calo bạn đã đốt cháy từ thiết bị đo lường (Smartwatch...) để hệ thống ghi nhận.",
+          Text(
+            'food.exercise_entry_subtitle'.tr(),
             style: TextStyle(color: Colors.grey, fontSize: 14),
           ),
           const SizedBox(height: 32),
           TextField(
             controller: nameCtrl,
             decoration: InputDecoration(
-              labelText: "Tên bài tập (vd: Đạp xe, Tập tạ...)",
+              labelText: 'food.exercise_name'.tr(),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1184,7 +1188,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
             controller: caloCtrl,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: "Lượng Calories đốt cháy (Kcal) *",
+              labelText: 'food.burned_calories'.tr(),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1210,15 +1214,17 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
 
                 final exerciseData = {
                   "_id": "exercise_${DateTime.now().millisecondsSinceEpoch}",
-                  "name": nameCtrl.text.isEmpty ? "Bài tập" : nameCtrl.text,
+                  "name": nameCtrl.text.isEmpty
+                      ? 'food.exercise'.tr()
+                      : nameCtrl.text,
                   "burnedCalories": double.tryParse(caloCtrl.text) ?? 0.0,
                   "isExercise": true,
                 };
 
                 Navigator.pop(context, exerciseData);
               },
-              child: const Text(
-                "Ghi nhận bài tập",
+              child: Text(
+                'food.log_exercise'.tr(),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -1237,7 +1243,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
   // ==========================================================
   // Giải quyết Vấn đề Lỗi 1&2: Tách Local State tab, hỗ trợ ảnh và edit/delete
   Widget _buildMyFoodsListState() {
-    final emptyMessage = "Chưa có món ăn nào của riêng bạn.";
+    final emptyMessage = 'food.no_my_foods'.tr();
 
     return Column(
       children: [
@@ -1246,8 +1252,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
           child: TextButton.icon(
             onPressed: _showAddMyFoodModal,
             icon: const Icon(Icons.add_circle, color: Color(0xFF65B362)),
-            label: const Text(
-              "Tạo món mới",
+            label: Text(
+              'food.create_new'.tr(),
               style: TextStyle(
                 color: Color(0xFF65B362),
                 fontWeight: FontWeight.bold,
@@ -1285,7 +1291,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                   itemBuilder: (context, index) {
                     final item = _myFoodsList[index];
                     final cals = item['totalCalories'] ?? item['calories'] ?? 0;
-                    final amountText = item['amount'] ?? "1 phần";
+                    final amountText =
+                        item['amount'] ?? 'food.default_portion'.tr();
                     String imageUrl = item['imageUrl'] ?? "";
 
                     // Kiểm tra ownership để hiện nút Sửa/Xóa
@@ -1456,7 +1463,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
             onPressed: isMyFood ? _showAddMyFoodModal : _showAddRecipeModal,
             icon: const Icon(Icons.add_circle, color: Color(0xFF65B362)),
             label: Text(
-              isMyFood ? "Tạo món mới" : "Tạo công thức",
+              isMyFood ? 'food.create_new'.tr() : 'food.create_recipe'.tr(),
               style: const TextStyle(
                 color: Color(0xFF65B362),
                 fontWeight: FontWeight.bold,
@@ -1494,7 +1501,8 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
                   itemBuilder: (context, index) {
                     final item = listData[index];
                     final cals = item['totalCalories'] ?? item['calories'] ?? 0;
-                    final amountText = item['amount'] ?? "1 phần";
+                    final amountText =
+                        item['amount'] ?? 'food.default_portion'.tr();
 
                     return InkWell(
                       onTap: () async {
@@ -1562,7 +1570,12 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
   }
 
   Widget _buildTabs() {
-    final tabs = ["Search", "My Foods", "Exercises", "Recipes"];
+    final tabs = [
+      'food.search'.tr(),
+      'food.my_foods'.tr(),
+      'food.exercises'.tr(),
+      'food.recipes'.tr(),
+    ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -1620,7 +1633,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
         controller: _searchController,
         onChanged: _onSearchChanged,
         decoration: InputDecoration(
-          hintText: "Search (vd: Ức gà, cơm...)",
+          hintText: 'food.search'.tr(),
           hintStyle: TextStyle(color: Colors.grey[400]),
           suffixIcon: Icon(Icons.search, color: Colors.grey[400]),
           border: InputBorder.none,
@@ -1677,11 +1690,11 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
           Divider(color: _lightBlueColor, thickness: 1),
           Expanded(
             child: _searchResults.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(16.0),
+                ? Padding(
+                    padding: const EdgeInsets.all(16.0),
                     child: Text(
-                      "Không tìm thấy món ăn nào",
-                      style: TextStyle(color: Colors.grey),
+                      'food.not_found'.tr(),
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   )
                 : ListView.separated(
@@ -1725,7 +1738,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              "${item['calories']} Kcal / 100g",
+              "${item['calories']} ${'food.kcal'.tr()} / 100${'food.gram'.tr()}",
               style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
           ],

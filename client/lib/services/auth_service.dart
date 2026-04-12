@@ -506,7 +506,12 @@ class AuthService {
         Uri.parse('$baseUrl/api/diary/$userId/$date'),
       );
       if (response.statusCode == 200) {
-        return jsonDecode(response.body)['diary'];
+        final decoded = jsonDecode(response.body);
+        final diary = decoded is Map<String, dynamic> ? decoded['diary'] : null;
+        if (diary is Map) {
+          return Map<String, dynamic>.from(diary);
+        }
+        return null;
       }
     } catch (e) {
       _log("Lỗi tải Cloud: $e");

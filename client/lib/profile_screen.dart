@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/auth_service.dart';
 import 'login_screen.dart';
@@ -69,9 +70,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Profile",
-          style: TextStyle(
+        title: Text(
+          'profile.title'.tr(),
+          style: const TextStyle(
             color: Colors.black87,
             fontSize: 24,
             fontWeight: FontWeight.normal,
@@ -84,7 +85,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
             )
           : _userData == null
-          ? const Center(child: Text("Lỗi tải dữ liệu. Vui lòng thử lại!"))
+          ? Center(
+              child: Text('${'common.error'.tr()}. ${'common.retry'.tr()}'),
+            )
           : SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -119,17 +122,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 40),
 
                     _buildSectionHeader(
-                      title: 'Your Info',
-                      subtitle: 'Thông tin cá nhân và hồ sơ cơ bản của bạn',
+                      title: 'profile.your_info'.tr(),
+                      subtitle: 'profile.info_subtitle'.tr(),
                     ).withStagger(0),
                     const SizedBox(height: 14),
                     _buildPersonalInfoCard().withStagger(1),
 
                     const SizedBox(height: 18),
                     _buildSectionHeader(
-                      title: 'Goal Overview',
-                      subtitle:
-                          'Mục tiêu bạn đã thiết lập trong quá trình đăng ký',
+                      title: 'profile.goal_overview'.tr(),
+                      subtitle: 'profile.goal_subtitle'.tr(),
                     ).withStagger(2),
                     const SizedBox(height: 14),
                     _buildGoalOverviewCard().withStagger(3),
@@ -179,9 +181,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          "Edit",
-                          style: TextStyle(
+                        child: Text(
+                          'profile.edit_profile'.tr(),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -204,9 +206,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          "Log out",
-                          style: TextStyle(
+                        child: Text(
+                          'profile.logout'.tr(),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -229,9 +231,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          "Change Goal",
-                          style: TextStyle(
+                        child: Text(
+                          'profile.change_goal'.tr(),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -288,42 +290,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildPersonalInfoCard() {
     final items = <_ProfileInfoItem>[
       _ProfileInfoItem(
-        label: 'Name',
-        value: _userData?['name'] ?? 'Chưa cập nhật',
+        label: 'profile.name'.tr(),
+        value: _userData?['name'] ?? 'profile.not_updated'.tr(),
         icon: Icons.person_outline_rounded,
         color: const Color(0xFF4CAF50),
       ),
       _ProfileInfoItem(
-        label: 'ID',
-        value: _userData?['_id']?.toString().substring(0, 8) ?? 'Chưa cập nhật',
+        label: 'profile.id'.tr(),
+        value:
+            _userData?['_id']?.toString().substring(0, 8) ??
+            'profile.not_updated'.tr(),
         icon: Icons.badge_outlined,
         color: const Color(0xFF78909C),
       ),
       _ProfileInfoItem(
-        label: 'Email',
-        value: _userData?['email'] ?? 'Chưa cập nhật',
+        label: 'profile.email'.tr(),
+        value: _userData?['email'] ?? 'profile.not_updated'.tr(),
         icon: Icons.email_outlined,
         color: const Color(0xFF1976D2),
       ),
       _ProfileInfoItem(
-        label: 'Gender',
-        value: _userData?['gender'] ?? 'Chưa cập nhật',
+        label: 'profile.gender'.tr(),
+        value: _userData?['gender'] ?? 'profile.not_updated'.tr(),
         icon: Icons.wc_outlined,
         color: const Color(0xFFFF8F00),
       ),
       _ProfileInfoItem(
-        label: 'Weight',
+        label: 'profile.weight'.tr(),
         value: _userData?['weight'] != null
             ? '${_userData!['weight']} Kg'
-            : 'Chưa cập nhật',
+            : 'profile.not_updated'.tr(),
         icon: Icons.monitor_weight_outlined,
         color: const Color(0xFF8D6E63),
       ),
       _ProfileInfoItem(
-        label: 'Height',
+        label: 'profile.height'.tr(),
         value: _userData?['height'] != null
             ? '${_userData!['height']} Cm'
-            : 'Chưa cập nhật',
+            : 'profile.not_updated'.tr(),
         icon: Icons.height_outlined,
         color: const Color(0xFF26A69A),
       ),
@@ -418,20 +422,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatGoalLabel(String? goal) {
     switch (goal) {
       case 'Losing Weight':
-        return 'Giảm cân';
+        return 'onboarding.losing_weight'.tr();
       case 'Gaining Weight':
-        return 'Tăng cân';
+        return 'onboarding.gaining_weight'.tr();
       case 'Keeping Weight':
-        return 'Giữ cân';
+        return 'onboarding.keeping_weight'.tr();
       case 'Being Fit':
-        return 'Giữ dáng';
+        return 'onboarding.being_fit'.tr();
       default:
-        return 'Chưa cập nhật';
+        return 'profile.not_updated'.tr();
     }
   }
 
   String _formatNullableNum(dynamic value, {String suffix = ''}) {
-    if (value == null) return 'Chưa cập nhật';
+    if (value == null) return 'profile.not_updated'.tr();
     if (value is num)
       return '${value.toStringAsFixed(value % 1 == 0 ? 0 : 1)}$suffix';
     return '$value$suffix';
@@ -452,21 +456,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (targetWeightLoss != null && durationDays != null) {
       planLabel =
           '${isLosing
-              ? 'Giảm'
+              ? 'onboarding.losing_weight'.tr()
               : isGaining
-              ? 'Tăng'
-              : 'Điều chỉnh'} '
+              ? 'onboarding.gaining_weight'.tr()
+              : 'Điều chỉnh'.tr()} '
           '${_formatNullableNum(targetWeightLoss, suffix: ' Kg')} '
-          'trong ${_formatNullableNum(durationDays, suffix: ' ngày')}';
+          '${'profile.duration'.tr()}: ${_formatNullableNum(durationDays, suffix: ' ngày')}';
     } else if (goal == 'Being Fit' || goal == 'Keeping Weight') {
-      planLabel = 'Duy trì thể trạng hiện tại';
+      planLabel = 'Duy trì thể trạng hiện tại'.tr();
     } else {
-      planLabel = 'Chưa cập nhật kế hoạch';
+      planLabel = 'profile.not_updated'.tr();
     }
 
     final calorieLabel = maintenanceCalo != null && targetCalo != null
         ? '${_formatNullableNum(maintenanceCalo)} → ${_formatNullableNum(targetCalo)} kcal/ngày'
-        : 'Chưa cập nhật';
+        : 'profile.not_updated'.tr();
 
     return Container(
       width: double.infinity,
@@ -524,27 +528,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               _buildGoalInfoCard(
                 icon: Icons.account_balance_wallet_rounded,
-                title: 'Daily budget',
+                title: 'profile.daily_budget'.tr(),
                 value: _formatNullableNum(dailyBudget, suffix: ' VNĐ'),
                 color: const Color(0xFF4CAF50),
               ),
               _buildGoalInfoCard(
                 icon: Icons.monitor_weight_rounded,
-                title: 'Target weight',
+                title: 'profile.target_weight'.tr(),
                 value: _formatNullableNum(targetWeight, suffix: ' Kg'),
                 color: const Color(0xFF8D6E63),
               ),
               _buildGoalInfoCard(
                 icon: Icons.schedule_rounded,
-                title: 'Duration',
+                title: 'profile.duration'.tr(),
                 value: durationDays != null
                     ? _formatNullableNum(durationDays, suffix: ' days')
-                    : 'Chưa cập nhật',
+                    : 'profile.not_updated'.tr(),
                 color: const Color(0xFF1976D2),
               ),
               _buildGoalInfoCard(
                 icon: Icons.local_fire_department_rounded,
-                title: 'Calories',
+                title: 'profile.calories'.tr(),
                 value: calorieLabel,
                 color: const Color(0xFFFF8F00),
               ),
@@ -564,7 +568,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Thông tin này được ghi lại từ bước thiết lập mục tiêu và có thể thay đổi bằng nút Change Goal.',
+                    '${'profile.goal_subtitle'.tr()}. ${'profile.change_goal'.tr()}.',
                     style: TextStyle(
                       fontSize: 12.5,
                       color: Colors.grey[700],
@@ -638,20 +642,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
-            "Change Your Goal?",
-            style: TextStyle(fontWeight: FontWeight.bold),
+          title: Text(
+            '${'profile.change_goal'.tr()}?',
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          content: const Text(
-            "Bạn sẽ được chuyển về trang nhập liệu ban đầu để thiết lập lại các chỉ số cơ thể và mục tiêu mới. Bạn có chắc chắn muốn tiếp tục?",
-            style: TextStyle(height: 1.5),
+          content: Text(
+            '${'profile.goal_subtitle'.tr()}. ${'common.confirm'.tr()}?',
+            style: const TextStyle(height: 1.5),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "Cancel",
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+              child: Text(
+                'common.cancel'.tr(),
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
             ),
             ElevatedButton(
@@ -673,9 +677,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   (Route<dynamic> route) => false,
                 );
               },
-              child: const Text(
-                "Yes",
-                style: TextStyle(
+              child: Text(
+                'common.yes'.tr(),
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),

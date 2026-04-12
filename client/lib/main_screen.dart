@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'profile_screen.dart';
 import 'diary_screen.dart';
 import 'home_screen.dart';
+import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -25,12 +27,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const DiaryScreen(),
-    const Center(
-      child: Text(
-        "⚙️ Trang Settings (Sắp ra mắt)",
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
-    ),
+    const SettingsScreen(),
     const ProfileScreen(),
   ];
 
@@ -74,34 +71,34 @@ class _MainScreenState extends State<MainScreen> {
           selectedFontSize: 12,
           unselectedFontSize: 12,
           onTap: _onItemTapped,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Padding(
+              icon: const Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Icon(Icons.home_filled),
               ),
-              label: 'Home',
+              label: 'nav.home'.tr(),
             ),
             BottomNavigationBarItem(
-              icon: Padding(
+              icon: const Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Icon(Icons.pie_chart),
               ),
-              label: 'Diaries',
+              label: 'nav.diaries'.tr(),
             ),
             BottomNavigationBarItem(
-              icon: Padding(
+              icon: const Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Icon(Icons.settings),
               ),
-              label: 'Settings',
+              label: 'nav.settings'.tr(),
             ),
             BottomNavigationBarItem(
-              icon: Padding(
+              icon: const Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Icon(Icons.person),
               ),
-              label: 'Profile',
+              label: 'nav.profile'.tr(),
             ),
           ],
         ),

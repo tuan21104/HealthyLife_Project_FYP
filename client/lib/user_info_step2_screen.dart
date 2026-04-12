@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'services/auth_service.dart';
 import 'bmi_calculation_screen.dart';
 import 'modal_effects.dart';
@@ -37,6 +38,13 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     "Very Active",
   ];
 
+  final Map<String, String> _activityLabelKeys = {
+    'Sedentary': 'onboarding.losing_weight',
+    'Lightly Active': 'onboarding.gaining_weight',
+    'Moderately Active': 'onboarding.keeping_weight',
+    'Very Active': 'onboarding.being_fit',
+  };
+
   // --- HÀM MỞ CAMERA/GALLERY ---
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -64,10 +72,10 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
         _selectedDate == null ||
         _selectedActivity == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            "Vui lòng điền đủ thông tin *",
-            style: TextStyle(color: Colors.white),
+            'onboarding.fill_all_fields'.tr(),
+            style: const TextStyle(color: Colors.white),
           ),
           backgroundColor: Colors.red,
         ),
@@ -95,8 +103,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
       await AuthService.clearPendingOnboarding();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Hoàn tất hồ sơ!"),
+        SnackBar(
+          content: Text('onboarding.profile_updated'.tr()),
           backgroundColor: Colors.green,
         ),
       );
@@ -129,8 +137,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Your Info",
+              Text(
+                'profile.your_info'.tr(),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -138,8 +146,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Step 2/2",
+              Text(
+                'onboarding.step_2_of_2'.tr(),
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 30),
@@ -172,8 +180,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      "Add Profile Picture",
+                    Text(
+                      'profile.edit_profile'.tr(),
                       style: TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ],
@@ -183,7 +191,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
 
               _buildInputWithToggle(
                 controller: _heightController,
-                label: "Height*",
+                label: 'onboarding.height'.tr(),
                 isMetric: _isCm,
                 unit1: "ft",
                 unit2: "cm",
@@ -193,7 +201,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
 
               _buildInputWithToggle(
                 controller: _weightController,
-                label: "Weight*",
+                label: 'onboarding.weight'.tr(),
                 isMetric: _isKg,
                 unit1: "lbs",
                 unit2: "kg",
@@ -204,8 +212,12 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               GestureDetector(
                 onTap: _showActivityDialog,
                 child: _buildDropdownField(
-                  "Week Movement",
-                  _selectedActivity ?? "",
+                  'onboarding.goal'.tr(),
+                  _selectedActivity != null
+                      ? (_activityLabelKeys[_selectedActivity!] ??
+                                'onboarding.goal')
+                            .tr()
+                      : '',
                 ),
               ),
               const SizedBox(height: 20),
@@ -214,10 +226,10 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               GestureDetector(
                 onTap: () => _selectDate(context),
                 child: _buildDropdownField(
-                  "Birth Date",
+                  'onboarding.age'.tr(),
                   _selectedDate != null
                       ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
-                      : "",
+                      : '',
                 ),
               ),
               const SizedBox(height: 40),
@@ -234,8 +246,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    "Calculate BMI and Weight",
+                  child: Text(
+                    'onboarding.finish'.tr(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -360,8 +372,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Profile Picture",
+              Text(
+                'profile.title'.tr(),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               IconButton(
@@ -373,10 +385,10 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildRadioOption("Choose from available avatars", 0),
-              _buildRadioOption("Choose from library", 1),
-              _buildRadioOption("Take photo", 2),
-              _buildRadioOption("Remove current picture", 3),
+              _buildRadioOption('common.add'.tr(), 0),
+              _buildRadioOption('common.edit'.tr(), 1),
+              _buildRadioOption('common.confirm'.tr(), 2),
+              _buildRadioOption('common.delete'.tr(), 3),
             ],
           ),
           actions: [
@@ -405,7 +417,10 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                     });
                   }
                 },
-                child: const Text("OK", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'common.ok'.tr(),
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -442,8 +457,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Profile Picture",
+              Text(
+                'profile.title'.tr(),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               IconButton(
@@ -487,7 +502,10 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                   ),
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text("OK", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'common.ok'.tr(),
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -504,8 +522,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
-            "Activity Level",
+          title: Text(
+            'onboarding.goal'.tr(),
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           content: Column(
@@ -513,7 +531,9 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
             children: _activities
                 .map(
                   (act) => ListTile(
-                    title: Text(act),
+                    title: Text(
+                      (_activityLabelKeys[act] ?? 'onboarding.goal').tr(),
+                    ),
                     onTap: () {
                       setState(() => _selectedActivity = act);
                       Navigator.pop(context);

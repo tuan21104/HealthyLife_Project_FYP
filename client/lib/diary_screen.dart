@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'food_search_screen.dart';
@@ -80,8 +81,20 @@ class _DiaryScreenState extends State<DiaryScreen> {
     } catch (_) {}
   }
 
+  List<Map<String, dynamic>> _asMapList(dynamic value) {
+    if (value is List) {
+      return value
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
   // --- HÀM 1: CẬP NHẬT GIAO DIỆN (HÀM PHỤ TRỢ) ---
   bool _updateStateWithData(Map<String, dynamic> data) {
+    if (!mounted) return false;
+
     bool migratedLegacyTarget = false;
 
     setState(() {
@@ -109,13 +122,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
       _targetFat =
           (data['targetFat'] as num?)?.toDouble() ?? (_targetCalo * 0.3) / 9;
 
-      _breakfastFoods = List<Map<String, dynamic>>.from(
-        data['breakfast'] ?? [],
-      );
-      _lunchFoods = List<Map<String, dynamic>>.from(data['lunch'] ?? []);
-      _snackFoods = List<Map<String, dynamic>>.from(data['snack'] ?? []);
-      _dinnerFoods = List<Map<String, dynamic>>.from(data['dinner'] ?? []);
-      _exerciseList = List<Map<String, dynamic>>.from(data['exercise'] ?? []);
+      _breakfastFoods = _asMapList(data['breakfast']);
+      _lunchFoods = _asMapList(data['lunch']);
+      _snackFoods = _asMapList(data['snack']);
+      _dinnerFoods = _asMapList(data['dinner']);
+      _exerciseList = _asMapList(data['exercise']);
     });
 
     return migratedLegacyTarget;
@@ -146,26 +157,32 @@ class _DiaryScreenState extends State<DiaryScreen> {
     String? userId = prefs.getString('userId');
     if (userId != null && userId.isNotEmpty) {
       print("==== ☁️ ĐANG LẤY NHẬT KÝ TỪ CLOUD: Ngày $formattedDate ====");
-      Map<String, dynamic>? cloudData = await AuthService.getDiaryFromCloud(
-        userId,
-        formattedDate,
-      );
+      try {
+        Map<String, dynamic>? cloudData = await AuthService.getDiaryFromCloud(
+          userId,
+          formattedDate,
+        );
 
-      if (cloudData != null) {
-        print("==== ✅ ĐÃ TẢI THÀNH CÔNG TỪ CLOUD VỀ MÁY ====");
-        final migrated = _updateStateWithData(cloudData);
+        if (cloudData != null) {
+          print("==== ✅ ĐÃ TẢI THÀNH CÔNG TỪ CLOUD VỀ MÁY ====");
+          final migrated = _updateStateWithData(cloudData);
 
-        // Tiện tay lưu luôn vào điện thoại để lần sau mở App không cần đợi tải mạng
-        if (migrated) {
-          await _saveDailyData();
-        } else {
-          await prefs.setString(dateKey, jsonEncode(cloudData));
+          // Tiện tay lưu luôn vào điện thoại để lần sau mở App không cần đợi tải mạng
+          if (migrated) {
+            await _saveDailyData();
+          } else {
+            await prefs.setString(dateKey, jsonEncode(cloudData));
+          }
+          return;
         }
-        return;
+      } catch (e) {
+        print("Lỗi parse/sync dữ liệu cloud: $e");
       }
     }
 
     // BƯỚC 3: NẾU MÂY CŨNG TRỐNG NỐT -> TẠO NGÀY MỚI TRẮNG TINH
+    if (!mounted) return;
+
     setState(() {
       _targetCalo = _defaultTargetCalo;
       _targetCarb = (_targetCalo * 0.5) / 4;
@@ -212,6 +229,23 @@ class _DiaryScreenState extends State<DiaryScreen> {
       };
 
       AuthService.syncDiaryToCloud(cloudData);
+    }
+  }
+
+  String _mealLabel(String key) {
+    switch (key) {
+      case 'Breakfast':
+        return 'diary.breakfast'.tr();
+      case 'Lunch':
+        return 'diary.lunch'.tr();
+      case 'Dinner':
+        return 'diary.dinner'.tr();
+      case 'Snack':
+        return 'diary.snack'.tr();
+      case 'Exercise':
+        return 'diary.exercise'.tr();
+      default:
+        return key;
     }
   }
 
@@ -552,9 +586,9 @@ class _DiaryScreenState extends State<DiaryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Diary",
-          style: TextStyle(
+        title: Text(
+          'diary.title'.tr(),
+          style: const TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.normal,
             color: Colors.black87,
@@ -666,8 +700,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const Text(
-                        "Taken",
+                      Text(
+                        'diary.taken'.tr(),
                         style: TextStyle(
                           color: Colors.black54,
                           fontSize: 16,
@@ -698,8 +732,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const Text(
-                        "Burnt",
+                      Text(
+                        'diary.burnt'.tr(),
                         style: TextStyle(
                           color: Colors.black54,
                           fontSize: 16,
@@ -751,7 +785,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              "Còn lại",
+                              'diary.remaining'.tr(),
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.grey[600],
@@ -903,7 +937,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
-          title,
+          _mealLabel(title),
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w500,

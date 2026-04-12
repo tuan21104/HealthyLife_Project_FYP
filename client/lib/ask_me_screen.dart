@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -551,9 +552,9 @@ class _AskMeScreenState extends State<AskMeScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         titleSpacing: 0,
-        title: const Text(
-          'Ask me',
-          style: TextStyle(
+        title: Text(
+          'ai_chat.title'.tr(),
+          style: const TextStyle(
             color: Colors.black,
             fontSize: 38,
             fontWeight: FontWeight.w400,
@@ -592,11 +593,11 @@ class _AskMeScreenState extends State<AskMeScreen> {
                     ),
             ),
             if (_isAiTyping)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(bottom: 6),
                 child: Text(
-                  'Healthy life AI is typing . . .',
-                  style: TextStyle(color: Colors.black45, fontSize: 12),
+                  'ai_chat.processing'.tr(),
+                  style: const TextStyle(color: Colors.black45, fontSize: 12),
                 ),
               ),
             if (_selectedImage != null)
@@ -744,7 +745,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
                       child: TextField(
                         controller: _messageController,
                         decoration: InputDecoration(
-                          hintText: 'Message',
+                          hintText: 'ai_chat.message'.tr(),
                           hintStyle: const TextStyle(color: Colors.black45),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14,
