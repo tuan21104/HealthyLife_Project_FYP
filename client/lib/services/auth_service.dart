@@ -5,6 +5,7 @@ import 'dart:io';
 
 class AuthService {
   static const String myWifiIp = '192.168.1.27';
+  static const bool enableLogs = false;
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;
@@ -13,6 +14,12 @@ class AuthService {
   static const String baseUrl = isOnlineMode
       ? 'http://$myWifiIp:3000'
       : 'http://10.0.2.2:3000';
+
+  static void _log(String message) {
+    if (enableLogs) {
+      print(message);
+    }
+  }
 
   static Map<String, dynamic>? _extractUserFromPayload(dynamic payload) {
     if (payload == null) return null;
@@ -104,7 +111,6 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print("==== 🕵️‍♂️ DỮ LIỆU LOGIN BACKEND GỬI VỀ LÀ: $data ====");
 
         if (data['token'] != null) {
           final prefs = await SharedPreferences.getInstance();
@@ -127,11 +133,6 @@ class AuthService {
 
           if (userId.isNotEmpty) {
             await prefs.setString('userId', userId);
-            print("==== ✅ Đã lưu Token và UserId: $userId ====");
-          } else {
-            print(
-              "==== ⚠️ CẢNH BÁO: Đăng nhập thành công nhưng Backend không trả về UserId! ====",
-            );
           }
         }
 
@@ -170,11 +171,6 @@ class AuthService {
       final requestBody = Map<String, dynamic>.from(profileData);
       requestBody['userId'] = userId;
 
-      print('==== 🔄 UPDATE PROFILE (bool) REQUEST ====');
-      print('URL: $baseUrl/api/users/update');
-      print('userId: $userId');
-      print('requestBody: $requestBody');
-
       final response = await http.put(
         Uri.parse('$baseUrl/api/users/update'),
         headers: {
@@ -184,13 +180,9 @@ class AuthService {
         body: jsonEncode(requestBody),
       );
 
-      print('==== 📥 UPDATE PROFILE (bool) RESPONSE ====');
-      print('statusCode: ${response.statusCode}');
-      print('body: ${response.body}');
-
       return response.statusCode == 200;
     } catch (e) {
-      print("Lỗi updateProfile: $e");
+      _log("Lỗi updateProfile: $e");
       return false;
     }
   }
@@ -218,11 +210,6 @@ class AuthService {
       final requestBody = Map<String, dynamic>.from(profileData);
       requestBody['userId'] = userId;
 
-      print('==== 🔄 UPDATE PROFILE WITH RESPONSE REQUEST ====');
-      print('URL: $baseUrl/api/users/update');
-      print('userId: $userId');
-      print('requestBody: $requestBody');
-
       final response = await http.put(
         Uri.parse('$baseUrl/api/users/update'),
         headers: {
@@ -232,20 +219,11 @@ class AuthService {
         body: jsonEncode(requestBody),
       );
 
-      print('==== 📥 UPDATE PROFILE WITH RESPONSE RAW ====');
-      print('statusCode: ${response.statusCode}');
-      print('body: ${response.body}');
-
       dynamic decoded;
       try {
         decoded = jsonDecode(response.body);
       } catch (_) {
         decoded = null;
-      }
-
-      if (decoded != null) {
-        print('==== 🧩 UPDATE PROFILE PARSED PAYLOAD ====');
-        print(decoded);
       }
 
       if (response.statusCode == 200) {
@@ -270,7 +248,7 @@ class AuthService {
 
       return {'success': false, 'message': message};
     } catch (e) {
-      print('Lỗi updateProfileWithResponse: $e');
+      _log('Lỗi updateProfileWithResponse: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -286,13 +264,8 @@ class AuthService {
       final userId = prefs.getString('userId');
 
       if (token == null) {
-        print("==== ⚠️ KHÔNG CÓ TOKEN, APP SẼ BỊ SERVER TỪ CHỐI ====");
         return {'success': false, 'message': 'Chưa đăng nhập'};
       }
-
-      print(
-        "==== 🔄 ĐANG LẤY PROFILE VỚI TOKEN: ${token.substring(0, 10)}... ====",
-      );
 
       // 2. Gọi API kèm theo Vé VIP trong Header
       // Lưu ý: Thay đổi URL '/api/users/$userId' cho đúng với API Node.js của bạn
@@ -308,14 +281,13 @@ class AuthService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        print("==== 🚨 SERVER TỪ CHỐI: ${response.body} ====");
         return {
           'success': false,
           'message': 'Lỗi xác thực: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print("==== 🚨 LỖI GỌI API PROFILE: $e ====");
+      _log("==== 🚨 LỖI GỌI API PROFILE: $e ====");
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -323,7 +295,7 @@ class AuthService {
   // --- HÀM TẢI KHO DATA MÓN ĂN GỐC ---
   static Future<Map<String, dynamic>> getAllFoods() async {
     try {
-      print("==== 🔄 ĐANG TẢI DATABASE MÓN ĂN TỪ: $baseUrl/api/foods ====");
+      _log("==== 🔄 ĐANG TẢI DATABASE MÓN ĂN TỪ: $baseUrl/api/foods ====");
       final response = await http.get(Uri.parse('$baseUrl/api/foods'));
 
       if (response.statusCode == 200) {
@@ -331,23 +303,21 @@ class AuthService {
 
         // TRƯỜNG HỢP 1: Backend trả về một Danh sách (Array) trực tiếp
         if (decodedData is List) {
-          print(
+          _log(
             "==== ✅ TẢI THÀNH CÔNG: ${decodedData.length} món ăn gốc (Dạng List) ====",
           );
           return {'success': true, 'foods': decodedData};
         }
 
         // TRƯỜNG HỢP 2: Backend trả về đúng chuẩn Object { success: true, foods: [...] }
-        print("==== ✅ TẢI THÀNH CÔNG (Dạng Object) ====");
+        _log("==== ✅ TẢI THÀNH CÔNG (Dạng Object) ====");
         return decodedData;
       } else {
-        print(
-          "==== ⚠️ LỖI SERVER KHI TẢI DATA: Mã ${response.statusCode} ====",
-        );
+        _log("==== ⚠️ LỖI SERVER KHI TẢI DATA: Mã ${response.statusCode} ====");
         return {'success': false, 'foods': []};
       }
     } catch (e) {
-      print("==== 🚨 LỖI GỌI API ALL FOODS: $e ====");
+      _log("==== 🚨 LỖI GỌI API ALL FOODS: $e ====");
       return {'success': false, 'foods': []};
     }
   }
@@ -365,7 +335,7 @@ class AuthService {
         return jsonDecode(response.body)['diary'];
       }
     } catch (e) {
-      print("Lỗi tải Cloud: $e");
+      _log("Lỗi tải Cloud: $e");
     }
     return null;
   }
@@ -378,9 +348,9 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(diaryData),
       );
-      print("☁️ Đã đồng bộ ngầm lên Cloud thành công!");
+      _log("☁️ Đã đồng bộ ngầm lên Cloud thành công!");
     } catch (e) {
-      print("Lỗi đồng bộ Cloud: $e");
+      _log("Lỗi đồng bộ Cloud: $e");
     }
   }
 
@@ -394,7 +364,7 @@ class AuthService {
         return jsonDecode(response.body)['foods'];
       }
     } catch (e) {
-      print("Lỗi tải My Foods: $e");
+      _log("Lỗi tải My Foods: $e");
     }
     return [];
   }
@@ -409,7 +379,7 @@ class AuthService {
         return jsonDecode(response.body)['recipes'];
       }
     } catch (e) {
-      print("Lỗi tải Recipes: $e");
+      _log("Lỗi tải Recipes: $e");
     }
     return [];
   }
@@ -424,7 +394,7 @@ class AuthService {
       String imageUrlOnCloud = ""; // Biến chứa link ảnh trên cloud
 
       if (imageToUpload != null) {
-        print("==== 🔄 BẮT ĐẦU UPLOAD ẢNH LÊN MÂY... ====");
+        _log("==== 🔄 BẮT ĐẦU UPLOAD ẢNH LÊN MÂY... ====");
         String? link = await uploadImage(imageToUpload);
         if (link != null) {
           imageUrlOnCloud = link; // Gán link ảnh lấy về vào đây
@@ -435,19 +405,19 @@ class AuthService {
       foodData['imageUrl'] = imageUrlOnCloud; // Nối link ảnh vào object JSON
 
       // BƯỚC C: GỬI HỒ SƠ MÓN ĂN LÊN CLOBAL DATABASE (MONGODB)
-      print("==== 🔄 ĐANG GỬI HỒ SƠ MÓN ĂN LÊN: $baseUrl/api/user-foods ====");
+      _log("==== 🔄 ĐANG GỬI HỒ SƠ MÓN ĂN LÊN: $baseUrl/api/user-foods ====");
       final response = await http.post(
         Uri.parse('$baseUrl/api/user-foods'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(foodData),
       );
 
-      print("==== KẾT QUẢ SERVER TRẢ VỀ: Mã ${response.statusCode} ====");
-      print("==== NỘI DUNG TRẢ VỀ: ${response.body} ====");
+      _log("==== KẾT QUẢ SERVER TRẢ VỀ: Mã ${response.statusCode} ====");
+      _log("==== NỘI DUNG TRẢ VỀ: ${response.body} ====");
 
       return response.statusCode == 201;
     } catch (e) {
-      print("==== 🚨 LỖI KẾT NỐI MẠNG CHÍ MẠNG: $e ====");
+      _log("==== 🚨 LỖI KẾT NỐI MẠNG CHÍ MẠNG: $e ====");
       return false;
     }
   }
@@ -462,7 +432,7 @@ class AuthService {
       );
       return response.statusCode == 201;
     } catch (e) {
-      print("Lỗi tạo Công thức: $e");
+      _log("Lỗi tạo Công thức: $e");
       return false;
     }
   }
@@ -492,13 +462,13 @@ class AuthService {
 
         // Trả về cái Link ảnh quý giá cho Flutter
         if (data['success'] == true && data['imageUrl'] != null) {
-          print("==== ✅ UPLOAD ẢNH THÀNH CÔNG: ${data['imageUrl']} ====");
+          _log("==== ✅ UPLOAD ẢNH THÀNH CÔNG: ${data['imageUrl']} ====");
           return data['imageUrl']; // Trả về link ảnh https
         }
       }
       return null;
     } catch (e) {
-      print("==== 🚨 LỖI UPLOAD ẢNH: $e ====");
+      _log("==== 🚨 LỖI UPLOAD ẢNH: $e ====");
       return null;
     }
   }
@@ -514,7 +484,7 @@ class AuthService {
       String finalImageUrl = foodData['imageUrl'] ?? ""; // Link ảnh cũ (nếu có)
 
       if (imageToUpload != null) {
-        print("==== 🔄 BẮT ĐẦU UPLOAD ẢNH MỚI LÊN MÂY... ====");
+        _log("==== 🔄 BẮT ĐẦU UPLOAD ẢNH MỚI LÊN MÂY... ====");
         String? link = await uploadImage(imageToUpload);
         if (link != null) {
           finalImageUrl = link; // Gán link ảnh mới
@@ -525,7 +495,7 @@ class AuthService {
       foodData['imageUrl'] = finalImageUrl;
 
       // BƯỚC C: GỬI REQUEST PUT LÊN SERVER NODE.JS
-      print(
+      _log(
         "==== 🔄 ĐANG CẬP NHẬT MÓN ĂN LÊN: $baseUrl/api/user-foods/$foodId ====",
       );
       final response = await http.put(
@@ -534,12 +504,12 @@ class AuthService {
         body: jsonEncode(foodData),
       );
 
-      print("==== KẾT QUẢ SERVER TRẢ VỀ: Mã ${response.statusCode} ====");
-      print("==== NỘI DUNG TRẢ VỀ: ${response.body} ====");
+      _log("==== KẾT QUẢ SERVER TRẢ VỀ: Mã ${response.statusCode} ====");
+      _log("==== NỘI DUNG TRẢ VỀ: ${response.body} ====");
 
       return response.statusCode == 200;
     } catch (e) {
-      print("==== 🚨 LỖI CẬP NHẬT MÓN ĂN: $e ====");
+      _log("==== 🚨 LỖI CẬP NHẬT MÓN ĂN: $e ====");
       return false;
     }
   }
@@ -547,19 +517,19 @@ class AuthService {
   // [NEW] 4. HÀM XÓA MÓN ĂN MY FOOD (DELETE)
   static Future<bool> deleteMyFood(String foodId, String userId) async {
     try {
-      print("==== 🔄 ĐANG XÓA MÓN ĂN: $baseUrl/api/user-foods/$foodId ====");
+      _log("==== 🔄 ĐANG XÓA MÓN ĂN: $baseUrl/api/user-foods/$foodId ====");
       final response = await http.delete(
         Uri.parse('$baseUrl/api/user-foods/$foodId'),
         headers: {'Content-Type': 'application/json'},
         // Ta không cần body để verify ownership bên Node.js, frontend sẽ lo
       );
 
-      print("==== KẾT QUẢ SERVER TRẢ VỀ: Mã ${response.statusCode} ====");
-      print("==== NỘI DUNG TRẢ VỀ: ${response.body} ====");
+      _log("==== KẾT QUẢ SERVER TRẢ VỀ: Mã ${response.statusCode} ====");
+      _log("==== NỘI DUNG TRẢ VỀ: ${response.body} ====");
 
       return response.statusCode == 200;
     } catch (e) {
-      print("==== 🚨 LỖI XÓA MÓN ĂN: $e ====");
+      _log("==== 🚨 LỖI XÓA MÓN ĂN: $e ====");
       return false;
     }
   }
@@ -567,7 +537,7 @@ class AuthService {
   // --- HÀM 4: LẤY THỐNG KÊ HOME TỪ SERVER NODE.JS (Cần viết API bên Node.js nhé) ---
   static Future<Map<String, dynamic>?> getHomeStatistics(String userId) async {
     try {
-      print("==== 🌐 GỌI API ĐẾN: $baseUrl/api/statistics/home/$userId ====");
+      _log("==== 🌐 GỌI API ĐẾN: $baseUrl/api/statistics/home/$userId ====");
       final response = await http
           .get(
             Uri.parse(
@@ -580,7 +550,7 @@ class AuthService {
         return jsonDecode(response.body)['data'];
       }
     } catch (e) {
-      print("Lỗi gọi API Home Statistics: $e");
+      _log("Lỗi gọi API Home Statistics: $e");
     }
     return null; // Trả về null nếu lỗi để Flutter dùng data mặc định
   }
@@ -624,7 +594,7 @@ class AuthService {
       );
       return jsonDecode(response.body);
     } catch (e) {
-      print("Lỗi gọi API Redeem: $e");
+      _log("Lỗi gọi API Redeem: $e");
       return {'success': false, 'message': 'Không thể kết nối Server'};
     }
   }
