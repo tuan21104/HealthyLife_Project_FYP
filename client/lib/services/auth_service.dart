@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
@@ -6,6 +8,7 @@ import 'dart:io';
 class AuthService {
   static const String myWifiIp = '192.168.1.27';
   static const bool enableLogs = false;
+  static const String _pendingOnboardingEmailKey = 'pending_onboarding_email';
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;
@@ -17,8 +20,42 @@ class AuthService {
 
   static void _log(String message) {
     if (enableLogs) {
-      print(message);
+      debugPrint(message);
     }
+  }
+
+  static String _extractErrorMessage(http.Response response) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message']?.toString().trim();
+        if (message != null && message.isNotEmpty) {
+          return message;
+        }
+      }
+    } catch (_) {
+      // Ignore JSON parse errors and fallback to HTTP message.
+    }
+
+    return 'Yeu cau that bai (HTTP ${response.statusCode}).';
+  }
+
+  static Exception _mapRequestException(Object error) {
+    if (error is SocketException) {
+      return Exception('Khong the ket noi toi server. Vui long kiem tra mang.');
+    }
+    if (error is TimeoutException) {
+      return Exception(
+        'Het thoi gian cho phan hoi tu server. Vui long thu lai.',
+      );
+    }
+    if (error is FormatException) {
+      return Exception('Du lieu tra ve khong hop le.');
+    }
+    if (error is Exception) {
+      return error;
+    }
+    return Exception('Da xay ra loi khong xac dinh.');
   }
 
   static Map<String, dynamic>? _extractUserFromPayload(dynamic payload) {
@@ -150,6 +187,143 @@ class AuthService {
     } catch (e) {
       return {'success': false, 'message': 'Không thể kết nối tới Server'};
     }
+  }
+
+  // --- HÀM MỚI: QUÊN MẬT KHẨU ---
+  static Future<bool> forgotPassword(String email) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/forgot-password'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      throw Exception(_extractErrorMessage(response));
+    } catch (e) {
+      throw _mapRequestException(e);
+    }
+  }
+
+  // --- HÀM MỚI: XÁC THỰC OTP (VERIFY EMAIL) ---
+  static Future<bool> verifyOtp(String email, String otp) async {
+    return verifySignupOtp(email, otp);
+  }
+
+  static Future<bool> verifySignupOtp(String email, String otp) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/verify-email'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim(), 'otpCode': otp.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      throw Exception(_extractErrorMessage(response));
+    } catch (e) {
+      throw _mapRequestException(e);
+    }
+  }
+
+  static Future<bool> verifyForgotPasswordOtp(String email, String otp) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/verify-reset-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim(), 'otpCode': otp.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      throw Exception(_extractErrorMessage(response));
+    } catch (e) {
+      throw _mapRequestException(e);
+    }
+  }
+
+  static Future<bool> resendSignupOtp(String email) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/resend-signup-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      throw Exception(_extractErrorMessage(response));
+    } catch (e) {
+      throw _mapRequestException(e);
+    }
+  }
+
+  // --- HÀM MỚI: ĐẶT LẠI MẬT KHẨU ---
+  static Future<bool> resetPassword(
+    String email,
+    String otp,
+    String newPassword,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/reset-password'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email.trim(),
+              'otpCode': otp.trim(),
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      throw Exception(_extractErrorMessage(response));
+    } catch (e) {
+      throw _mapRequestException(e);
+    }
+  }
+
+  static Future<void> markPendingOnboarding(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _pendingOnboardingEmailKey,
+      email.trim().toLowerCase(),
+    );
+  }
+
+  static Future<bool> shouldForceOnboarding(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final pendingEmail = prefs.getString(_pendingOnboardingEmailKey);
+    if (pendingEmail == null || pendingEmail.isEmpty) {
+      return false;
+    }
+    return pendingEmail == email.trim().toLowerCase();
+  }
+
+  static Future<void> clearPendingOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingOnboardingEmailKey);
   }
 
   // --- HÀM 3: CẬP NHẬT THÔNG TIN (BẢN FIX TRIỆT ĐỂ LỖI OBJECTID) ---// Trong file lib/services/auth_service.dart
@@ -571,8 +745,9 @@ class AuthService {
       final userId = prefs.getString('userId');
       final token = prefs.getString('jwt_token');
 
-      if (userId == null)
+      if (userId == null) {
         return {'success': false, 'message': 'Lỗi ID người dùng'};
+      }
 
       final response = await http.post(
         Uri.parse('$baseUrl/api/shop/redeem'),

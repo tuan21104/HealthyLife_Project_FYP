@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'signup_screen.dart';
 import 'welcome_screen.dart';
-import 'main_screen.dart'; 
+import 'main_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String initialEmail;
+
+  const LoginScreen({super.key, this.initialEmail = ''});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -15,8 +18,21 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isObscure = true;
   bool _isLoading = false;
 
-  final TextEditingController _emailController = TextEditingController();
+  late final TextEditingController _emailController;
   final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void _handleLogin() async {
     String email = _emailController.text.trim();
@@ -41,41 +57,48 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Bắt cờ hasProfile từ Backend gửi về
       bool hasProfile = result['hasProfile'] ?? false;
+      bool forceOnboarding = await AuthService.shouldForceOnboarding(email);
 
       Future.delayed(const Duration(milliseconds: 500), () {
         if (!mounted) return;
 
-        if (hasProfile) {
+        if (forceOnboarding) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WelcomeScreen(email: email),
+            ),
+          );
+        } else if (hasProfile) {
           // --- NHÁNH 1: TÀI KHOẢN CŨ (Đã có thông tin chiều cao/cân nặng) ---
-          print("Tài khoản cũ -> Bypass Onboarding, vào thẳng Trang chủ");
-          _showMessage("Chào mừng trở lại! (Sẽ chuyển thẳng vào Trang chủ)", Colors.blue);
-          
+          _showMessage(
+            "Chào mừng trở lại! (Sẽ chuyển thẳng vào Trang chủ)",
+            Colors.blue,
+          );
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const MainScreen()),
           );
-          
         } else {
           // --- NHÁNH 2: TÀI KHOẢN MỚI (Chưa có thông tin) ---
-          print("Tài khoản mới -> Vào luồng Onboarding điền thông tin");
           Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => WelcomeScreen(email: email)
-              )
+            context,
+            MaterialPageRoute(
+              builder: (context) => WelcomeScreen(email: email),
+            ),
           );
         }
       });
-
     } else {
       _showMessage(result['message'], Colors.red);
     }
   }
 
   void _showMessage(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
@@ -96,11 +119,17 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-
               const SizedBox(height: 40),
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Text("Log In", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+                child: Text(
+                  "Log In",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ),
               const SizedBox(height: 30),
 
@@ -120,13 +149,40 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _isObscure,
                 decoration: _inputDecoration("***********").copyWith(
                   suffixIcon: IconButton(
-                    icon: Icon(_isObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey),
+                    icon: Icon(
+                      _isObscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: Colors.grey,
+                    ),
                     onPressed: () => setState(() => _isObscure = !_isObscure),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Quên mật khẩu?',
+                    style: TextStyle(
+                      color: Color(0xFF4CAF50),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
 
               SizedBox(
                 width: double.infinity,
@@ -135,12 +191,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                   child: _isLoading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text("Log In", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Log In",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
 
@@ -148,10 +220,24 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Don't have an account? ", style: TextStyle(color: Colors.grey[600])),
+                  Text(
+                    "Don't have an account? ",
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                   GestureDetector(
-                    onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
-                    child: const Text("Sign up", style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
+                    onTap: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignUpScreen(),
+                      ),
+                    ),
+                    child: const Text(
+                      "Sign up",
+                      style: TextStyle(
+                        color: Color(0xFF4CAF50),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -162,15 +248,24 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildLabel(String text) => Align(alignment: Alignment.centerLeft, child: Text(text, style: const TextStyle(color: Colors.grey, fontSize: 14)));
+  Widget _buildLabel(String text) => Align(
+    alignment: Alignment.centerLeft,
+    child: Text(text, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+  );
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey[400]),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
     );
   }
 }

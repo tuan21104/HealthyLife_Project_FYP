@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'otp_verification_screen.dart';
 import 'services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -46,7 +47,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 420),
+            reverseTransitionDuration: const Duration(milliseconds: 260),
+            pageBuilder: (_, animation, __) => FadeTransition(
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOut,
+              ),
+              child: OtpVerificationScreen(email: email, flow: OtpFlow.signup),
+            ),
+          ),
         );
       });
     } else {
@@ -92,11 +103,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 30),
 
-              _buildTextField("Email", "Nhập email", controller: _emailController),
+              _buildTextField(
+                "Email",
+                "Nhập email",
+                controller: _emailController,
+              ),
               const SizedBox(height: 20),
-              _buildTextField("Password", "********", isPassword: true, controller: _passwordController),
+              _buildTextField(
+                "Password",
+                "********",
+                isPassword: true,
+                controller: _passwordController,
+              ),
               const SizedBox(height: 20),
-              _buildTextField("Confirm Password", "********", isPassword: true, controller: _confirmPassController),
+              _buildTextField(
+                "Confirm Password",
+                "********",
+                isPassword: true,
+                controller: _confirmPassController,
+              ),
 
               const SizedBox(height: 40),
 
@@ -114,18 +139,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                  )
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text(
-                    "Sign Up",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                          "Sign Up",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
 
@@ -134,12 +162,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Already have account? ", style: TextStyle(color: Colors.grey[600])),
+                  Text(
+                    "Already have account? ",
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                   GestureDetector(
                     onTap: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
                       );
                     },
                     child: const Text(
@@ -159,7 +192,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildTextField(String label, String hint, {bool isPassword = false, required TextEditingController controller}) {
+  Widget _buildTextField(
+    String label,
+    String hint, {
+    bool isPassword = false,
+    required TextEditingController controller,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -171,14 +209,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
             suffixIcon: isPassword
                 ? IconButton(
-              icon: Icon(_isObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey),
-              onPressed: () => setState(() => _isObscure = !_isObscure),
-            )
+                    icon: Icon(
+                      _isObscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () => setState(() => _isObscure = !_isObscure),
+                  )
                 : null,
           ),
         ),

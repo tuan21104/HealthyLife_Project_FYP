@@ -54,7 +54,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
         });
       }
     } catch (e) {
-      print("Lỗi chọn ảnh: $e");
+      debugPrint('Lỗi chọn ảnh: $e');
     }
   }
 
@@ -92,6 +92,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     });
 
     if (success) {
+      await AuthService.clearPendingOnboarding();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

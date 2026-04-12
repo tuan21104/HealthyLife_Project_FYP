@@ -16,6 +16,18 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    otpCode: {
+        type: String,
+        default: null
+    },
+    otpExpires: {
+        type: Date,
+        default: null
+    },
 
     // 2. Thông tin chỉ số sức khỏe (Để tính BMI/TDEE)
     gender: {
