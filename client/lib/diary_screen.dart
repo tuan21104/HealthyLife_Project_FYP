@@ -26,6 +26,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   final Color _macroBgColor = const Color(0xFFD3E7F0);
 
   double _targetCalo = 1200;
+  double _defaultTargetCalo = 1200;
   double _targetCarb = 150;
   double _targetProtein = 60;
   double _targetFat = 40;
@@ -38,19 +39,68 @@ class _DiaryScreenState extends State<DiaryScreen> {
   @override
   void initState() {
     super.initState();
-    _targetCalo = widget.initialCalo;
+    _defaultTargetCalo = widget.initialCalo;
+    _targetCalo = _defaultTargetCalo;
     _targetCarb = (_targetCalo * 0.5) / 4;
     _targetProtein = (_targetCalo * 0.2) / 4;
     _targetFat = (_targetCalo * 0.3) / 9;
 
-    _loadDailyData();
+    _bootstrapDiaryData();
+  }
+
+  Future<void> _bootstrapDiaryData() async {
+    await _loadPersonalizedTargetCalo();
+    await _loadDailyData();
+  }
+
+  Future<void> _refreshDiaryPage() async {
+    await _bootstrapDiaryData();
+  }
+
+  Future<void> _loadPersonalizedTargetCalo() async {
+    try {
+      final profile = await AuthService.getUserProfile();
+      final user = profile is Map<String, dynamic>
+          ? (profile['user'] ?? profile['data'])
+          : null;
+
+      final profileTarget = user is Map
+          ? (user['targetCalo'] as num?)?.toDouble()
+          : null;
+
+      if (profileTarget != null && profileTarget > 0 && mounted) {
+        setState(() {
+          _defaultTargetCalo = profileTarget;
+          _targetCalo = profileTarget;
+          _targetCarb = (_targetCalo * 0.5) / 4;
+          _targetProtein = (_targetCalo * 0.2) / 4;
+          _targetFat = (_targetCalo * 0.3) / 9;
+        });
+      }
+    } catch (_) {}
   }
 
   // --- HÀM 1: CẬP NHẬT GIAO DIỆN (HÀM PHỤ TRỢ) ---
-  void _updateStateWithData(Map<String, dynamic> data) {
+  bool _updateStateWithData(Map<String, dynamic> data) {
+    bool migratedLegacyTarget = false;
+
     setState(() {
+      final savedTargetCalo = (data['targetCalo'] as num?)?.toDouble();
+
+      // Migrate dữ liệu cũ: trước đây target mặc định luôn bị lưu là 1200.
+      final isLegacyDefault =
+          savedTargetCalo != null &&
+          savedTargetCalo == widget.initialCalo &&
+          _defaultTargetCalo != widget.initialCalo;
+
+      if (isLegacyDefault) {
+        migratedLegacyTarget = true;
+      }
+
       _targetCalo =
-          (data['targetCalo'] as num?)?.toDouble() ?? widget.initialCalo;
+          (savedTargetCalo != null && savedTargetCalo > 0 && !isLegacyDefault)
+          ? savedTargetCalo
+          : _defaultTargetCalo;
       _targetCarb =
           (data['targetCarb'] as num?)?.toDouble() ?? (_targetCalo * 0.5) / 4;
       _targetProtein =
@@ -67,6 +117,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
       _dinnerFoods = List<Map<String, dynamic>>.from(data['dinner'] ?? []);
       _exerciseList = List<Map<String, dynamic>>.from(data['exercise'] ?? []);
     });
+
+    return migratedLegacyTarget;
   }
 
   // --- HÀM 2: TẢI DỮ LIỆU THÔNG MINH (LOCAL + CLOUD) ---
@@ -80,7 +132,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
     if (savedData != null) {
       try {
         Map<String, dynamic> data = jsonDecode(savedData);
-        _updateStateWithData(data);
+        final migrated = _updateStateWithData(data);
+        if (migrated) {
+          await _saveDailyData();
+        }
         return; // Có data trong máy rồi thì dừng luôn
       } catch (e) {
         print("Lỗi parse JSON Local: $e");
@@ -98,17 +153,21 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
       if (cloudData != null) {
         print("==== ✅ ĐÃ TẢI THÀNH CÔNG TỪ CLOUD VỀ MÁY ====");
-        _updateStateWithData(cloudData);
+        final migrated = _updateStateWithData(cloudData);
 
         // Tiện tay lưu luôn vào điện thoại để lần sau mở App không cần đợi tải mạng
-        await prefs.setString(dateKey, jsonEncode(cloudData));
+        if (migrated) {
+          await _saveDailyData();
+        } else {
+          await prefs.setString(dateKey, jsonEncode(cloudData));
+        }
         return;
       }
     }
 
     // BƯỚC 3: NẾU MÂY CŨNG TRỐNG NỐT -> TẠO NGÀY MỚI TRẮNG TINH
     setState(() {
-      _targetCalo = widget.initialCalo;
+      _targetCalo = _defaultTargetCalo;
       _targetCarb = (_targetCalo * 0.5) / 4;
       _targetProtein = (_targetCalo * 0.2) / 4;
       _targetFat = (_targetCalo * 0.3) / 9;
@@ -302,6 +361,26 @@ class _DiaryScreenState extends State<DiaryScreen> {
     };
   }
 
+  Map<String, dynamic> _calculateHealthStatus(double taken, double burnt) {
+    if (taken <= 0) {
+      return {'icon': Icons.sentiment_very_dissatisfied, 'color': Colors.red};
+    }
+
+    final target = _targetCalo <= 0 ? 1.0 : _targetCalo;
+    final netCalorie = taken - burnt;
+    final deviationRatio = ((netCalorie - target).abs()) / target;
+
+    if (deviationRatio <= 0.10) {
+      return {'icon': Icons.sentiment_satisfied_alt, 'color': _greenColor};
+    }
+
+    if (deviationRatio <= 0.30) {
+      return {'icon': Icons.sentiment_neutral, 'color': Colors.orange};
+    }
+
+    return {'icon': Icons.sentiment_very_dissatisfied, 'color': Colors.red};
+  }
+
   Future<void> _handleAddFood(String mealType) async {
     final addedData = await Navigator.push(
       context,
@@ -350,6 +429,51 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
       _saveDailyData();
     }
+  }
+
+  void _showAddActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final actions = [
+          {'title': 'Breakfast', 'icon': Icons.free_breakfast_rounded},
+          {'title': 'Lunch', 'icon': Icons.lunch_dining_rounded},
+          {'title': 'Dinner', 'icon': Icons.dinner_dining_rounded},
+          {'title': 'Snack', 'icon': Icons.icecream_rounded},
+          {'title': 'Exercise', 'icon': Icons.fitness_center_rounded},
+        ];
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: actions
+                  .map(
+                    (item) => ListTile(
+                      leading: Icon(
+                        item['icon'] as IconData,
+                        color: _greenColor,
+                      ),
+                      title: Text(
+                        item['title'] as String,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _handleAddFood(item['title'] as String);
+                      },
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showEditTargetDialog(
@@ -418,60 +542,92 @@ class _DiaryScreenState extends State<DiaryScreen> {
   Widget build(BuildContext context) {
     final totals =
         _calculateTotals(); // Tính toán tươi mới mỗi khi vẽ giao diện
+    final healthStatus = _calculateHealthStatus(
+      totals['taken']!,
+      totals['burnt']!,
+    );
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          "Diary",
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.normal,
+            color: Colors.black87,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.add_circle, color: _greenColor, size: 36),
+            onPressed: _showAddActionSheet,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 30),
-              _buildCalorieTracker(totals['taken']!, totals['burnt']!),
-              const SizedBox(height: 24),
-              _buildMacrosTracker(
-                totals['carb']!,
-                totals['protein']!,
-                totals['fat']!,
-              ),
-              const SizedBox(height: 20),
-              _buildDateSelector(),
-              const SizedBox(height: 20),
+        child: RefreshIndicator(
+          onRefresh: _refreshDiaryPage,
+          color: _greenColor,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 16.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCalorieTracker(totals['taken']!, totals['burnt']!),
+                const SizedBox(height: 24),
+                _buildMacrosTracker(
+                  totals['carb']!,
+                  totals['protein']!,
+                  totals['fat']!,
+                ),
+                const SizedBox(height: 20),
+                _buildDateSelector(
+                  moodIcon: healthStatus['icon'] as IconData,
+                  moodColor: healthStatus['color'] as Color,
+                ),
+                const SizedBox(height: 20),
 
-              _buildMealSection(
-                "Breakfast",
-                _breakfastFoods,
-                _greenColor,
-              ).withStagger(0),
-              const SizedBox(height: 12),
-              _buildMealSection(
-                "Lunch",
-                _lunchFoods,
-                _greenColor,
-              ).withStagger(1),
-              const SizedBox(height: 12),
-              _buildMealSection(
-                "Exercise",
-                _exerciseList,
-                _blueGreyColor,
-              ).withStagger(2), // Đã truyền list bài tập
-              const SizedBox(height: 12),
-              _buildMealSection(
-                "Snack",
-                _snackFoods,
-                _greenColor,
-              ).withStagger(3),
-              const SizedBox(height: 12),
-              _buildMealSection(
-                "Dinner",
-                _dinnerFoods,
-                _greenColor,
-              ).withStagger(4),
+                _buildMealSection(
+                  "Breakfast",
+                  _breakfastFoods,
+                  _greenColor,
+                ).withStagger(0),
+                const SizedBox(height: 12),
+                _buildMealSection(
+                  "Lunch",
+                  _lunchFoods,
+                  _greenColor,
+                ).withStagger(1),
+                const SizedBox(height: 12),
+                _buildMealSection(
+                  "Exercise",
+                  _exerciseList,
+                  _blueGreyColor,
+                ).withStagger(2), // Đã truyền list bài tập
+                const SizedBox(height: 12),
+                _buildMealSection(
+                  "Snack",
+                  _snackFoods,
+                  _greenColor,
+                ).withStagger(3),
+                const SizedBox(height: 12),
+                _buildMealSection(
+                  "Dinner",
+                  _dinnerFoods,
+                  _greenColor,
+                ).withStagger(4),
 
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -727,30 +883,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
     List<Map<String, dynamic>> foods,
     Color bgColor,
   ) {
-    Widget addButton = SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: () => _handleAddFood(title),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bgColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Text(
-          "+$title",
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.normal,
-            color: Colors.black54,
-          ),
-        ),
-      ),
-    );
-    if (foods.isEmpty) return addButton;
-
     // Lấy đúng số Calo tùy thuộc vào Bữa Ăn hay Bài Tập
     double mealTotalCalo = foods.fold(
       0,
@@ -760,221 +892,213 @@ class _DiaryScreenState extends State<DiaryScreen> {
               .toDouble()),
     );
 
-    return Column(
-      children: [
-        addButton,
-        const SizedBox(height: 8),
-        Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _macroBgColor.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        collapsedBackgroundColor: bgColor,
+        backgroundColor: _macroBgColor.withOpacity(0.35),
+        collapsedShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: Colors.black54,
+          ),
+        ),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
             ),
-            child: ExpansionTile(
-              title: Text(
-                "Total Energy: ${mealTotalCalo.toStringAsFixed(1)} Kcal",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black54,
-                ),
-              ),
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      bottom: Radius.circular(12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Total Energy: ${mealTotalCalo.toStringAsFixed(1)} Kcal",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black54,
                     ),
                   ),
-                  child: Column(
-                    children: [
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              "Name",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              "Amount",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              "Kcal",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              "Carb",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              "Proteins",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              "Fat",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ...foods.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        Map<String, dynamic> food = entry.value;
-
-                        return Dismissible(
-                          key: UniqueKey(),
-                          direction: DismissDirection.endToStart,
-                          onDismissed: (direction) => _deleteFood(title, index),
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 16),
-                            color: Colors.red[400],
-                            child: const Icon(
-                              Icons.delete,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          child: GestureDetector(
-                            onTap: () =>
-                                _showEditFoodDialog(title, index, food),
-                            child: Container(
-                              color: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 6.0,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                      food['name'] ?? '',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFF5A9B58),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      food['amount']?.toString() ?? '-',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      (food['kcal'] ??
-                                              food['burnedCalories'] ??
-                                              food['calories'] ??
-                                              0.0)
-                                          .toDouble()
-                                          .toStringAsFixed(1),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      (food['carb'] ?? food['carbs'] ?? 0.0)
-                                          .toDouble()
-                                          .toStringAsFixed(1),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      (food['protein'] ?? 0.0)
-                                          .toDouble()
-                                          .toStringAsFixed(1),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      (food['fat'] ?? 0.0)
-                                          .toDouble()
-                                          .toStringAsFixed(1),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ).withStagger(index, beginY: 0.12);
-                      }),
-                    ],
-                  ),
                 ),
+                const SizedBox(height: 10),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        "Name",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        "Gram",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        "Kcal",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        "Carb",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        "Protein",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        "Fat",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (foods.isEmpty)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Chưa có dữ liệu',
+                      style: TextStyle(color: Colors.black45),
+                    ),
+                  )
+                else
+                  ...foods.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    Map<String, dynamic> food = entry.value;
+
+                    return Dismissible(
+                      key: UniqueKey(),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (direction) => _deleteFood(title, index),
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 16),
+                        color: Colors.red[400],
+                        child: const Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      child: GestureDetector(
+                        onTap: () => _showEditFoodDialog(title, index, food),
+                        child: Container(
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  food['name'] ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF5A9B58),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  food['amount']?.toString() ?? '-',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  (food['kcal'] ??
+                                          food['burnedCalories'] ??
+                                          food['calories'] ??
+                                          0.0)
+                                      .toDouble()
+                                      .toStringAsFixed(1),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  (food['carb'] ?? food['carbs'] ?? 0.0)
+                                      .toDouble()
+                                      .toStringAsFixed(1),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  (food['protein'] ?? 0.0)
+                                      .toDouble()
+                                      .toStringAsFixed(1),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  (food['fat'] ?? 0.0)
+                                      .toDouble()
+                                      .toStringAsFixed(1),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ).withStagger(index, beginY: 0.12);
+                  }),
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          "Diary",
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.normal,
-            color: Colors.black87,
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.add_circle, color: _greenColor, size: 36),
-          onPressed: () {},
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateSelector() {
+  Widget _buildDateSelector({
+    required IconData moodIcon,
+    required Color moodColor,
+  }) {
     DateTime today = DateTime.now();
     DateTime todayOnly = DateTime(today.year, today.month, today.day);
     DateTime minDate = todayOnly.subtract(const Duration(days: 6));
@@ -986,70 +1110,98 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
     bool canGoBack = selectedOnly.isAfter(minDate);
     bool canGoForward = selectedOnly.isBefore(todayOnly);
+    final sideWidth = MediaQuery.of(context).size.width * 0.38;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        GestureDetector(
-          onTap: canGoBack
-              ? () {
-                  setState(
-                    () => _selectedDate = _selectedDate.subtract(
-                      const Duration(days: 1),
+    return SizedBox(
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: sideWidth,
+              child: GestureDetector(
+                onTap: canGoBack
+                    ? () {
+                        setState(
+                          () => _selectedDate = _selectedDate.subtract(
+                            const Duration(days: 1),
+                          ),
+                        );
+                        _loadDailyData();
+                      }
+                    : null,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.arrow_back_ios,
+                      size: 16,
+                      color: canGoBack ? Colors.black87 : Colors.grey[300],
                     ),
-                  );
-                  _loadDailyData();
-                }
-              : null,
-          child: Row(
-            children: [
-              Icon(
-                Icons.arrow_back_ios,
-                size: 16,
-                color: canGoBack ? Colors.black87 : Colors.grey[300],
-              ),
-              const SizedBox(width: 8),
-              Text(
-                DateFormat('EEEE').format(_selectedDate),
-                style: TextStyle(
-                  fontSize: 18,
-                  color: canGoBack ? Colors.black54 : Colors.grey[300],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        DateFormat('EEEE').format(_selectedDate),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: canGoBack ? Colors.black54 : Colors.grey[300],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-        Icon(Icons.sentiment_satisfied_alt, size: 40, color: Colors.grey[400]),
-        GestureDetector(
-          onTap: canGoForward
-              ? () {
-                  setState(
-                    () => _selectedDate = _selectedDate.add(
-                      const Duration(days: 1),
+          Center(child: Icon(moodIcon, size: 40, color: moodColor)),
+          Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              width: sideWidth,
+              child: GestureDetector(
+                onTap: canGoForward
+                    ? () {
+                        setState(
+                          () => _selectedDate = _selectedDate.add(
+                            const Duration(days: 1),
+                          ),
+                        );
+                        _loadDailyData();
+                      }
+                    : null,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        DateFormat('yyyy-MM-dd').format(_selectedDate),
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: canGoForward
+                              ? Colors.black54
+                              : Colors.grey[300],
+                        ),
+                      ),
                     ),
-                  );
-                  _loadDailyData();
-                }
-              : null,
-          child: Row(
-            children: [
-              Text(
-                DateFormat('yyyy-MM-dd').format(_selectedDate),
-                style: TextStyle(
-                  fontSize: 18,
-                  color: canGoForward ? Colors.black54 : Colors.grey[300],
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: canGoForward ? Colors.black87 : Colors.grey[300],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: canGoForward ? Colors.black87 : Colors.grey[300],
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
