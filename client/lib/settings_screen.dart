@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  Future<void> _changeLocale(BuildContext context, Locale locale) async {
+    if (context.locale == locale) return;
+    await context.setLocale(locale);
+  }
+
   @override
   Widget build(BuildContext context) {
     final localization = EasyLocalization.of(context);
@@ -50,14 +55,18 @@ class SettingsScreen extends StatelessWidget {
                         ChoiceChip(
                           label: const Text('Tiếng Việt'),
                           selected: currentLocale.languageCode == 'vi',
-                          onSelected: (_) =>
-                              localization?.setLocale(const Locale('vi')),
+                          onSelected: (selected) {
+                            if (!selected) return;
+                            _changeLocale(context, const Locale('vi'));
+                          },
                         ),
                         ChoiceChip(
                           label: const Text('English'),
                           selected: currentLocale.languageCode == 'en',
-                          onSelected: (_) =>
-                              localization?.setLocale(const Locale('en')),
+                          onSelected: (selected) {
+                            if (!selected) return;
+                            _changeLocale(context, const Locale('en'));
+                          },
                         ),
                       ],
                     ),

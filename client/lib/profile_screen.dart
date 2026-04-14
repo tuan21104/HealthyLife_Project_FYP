@@ -19,11 +19,27 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
+  Locale? _currentLocale;
 
   @override
   void initState() {
     super.initState();
     _fetchUserData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newLocale = context.locale;
+    if (_currentLocale == null) {
+      _currentLocale = newLocale;
+      return;
+    }
+
+    if (_currentLocale != newLocale && mounted) {
+      _currentLocale = newLocale;
+      setState(() {});
+    }
   }
 
   Future<void> _fetchUserData() async {
@@ -310,8 +326,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: const Color(0xFF1976D2),
       ),
       _ProfileInfoItem(
+        label: 'profile.phone_number'.tr(),
+        value:
+            (_userData?['phoneNumber']?.toString().trim().isNotEmpty ?? false)
+            ? _userData!['phoneNumber']
+            : 'profile.not_updated'.tr(),
+        icon: Icons.phone_outlined,
+        color: const Color(0xFF00897B),
+      ),
+      _ProfileInfoItem(
         label: 'profile.gender'.tr(),
-        value: _userData?['gender'] ?? 'profile.not_updated'.tr(),
+        value: _formatGenderLabel(_userData?['gender']),
         icon: Icons.wc_outlined,
         color: const Color(0xFFFF8F00),
       ),
@@ -330,6 +355,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : 'profile.not_updated'.tr(),
         icon: Icons.height_outlined,
         color: const Color(0xFF26A69A),
+      ),
+      _ProfileInfoItem(
+        label: 'profile.activity_level'.tr(),
+        value: _formatActivityLevelLabel(_userData?['activityLevel']),
+        icon: Icons.directions_run_outlined,
+        color: const Color(0xFF5C6BC0),
       ),
     ];
 
@@ -422,13 +453,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatGoalLabel(String? goal) {
     switch (goal) {
       case 'Losing Weight':
+      case 'onboarding.losing_weight':
         return 'onboarding.losing_weight'.tr();
       case 'Gaining Weight':
+      case 'onboarding.gaining_weight':
         return 'onboarding.gaining_weight'.tr();
       case 'Keeping Weight':
+      case 'onboarding.keeping_weight':
         return 'onboarding.keeping_weight'.tr();
       case 'Being Fit':
+      case 'onboarding.being_fit':
         return 'onboarding.being_fit'.tr();
+      default:
+        return 'profile.not_updated'.tr();
+    }
+  }
+
+  String _formatGenderLabel(dynamic gender) {
+    final g = gender?.toString().toLowerCase();
+    switch (g) {
+      case 'male':
+        return 'onboarding.male'.tr();
+      case 'female':
+        return 'onboarding.female'.tr();
+      case 'other':
+        return 'onboarding.other'.tr();
+      default:
+        return 'profile.not_updated'.tr();
+    }
+  }
+
+  String _formatActivityLevelLabel(dynamic activityLevel) {
+    final level = activityLevel?.toString();
+    switch (level) {
+      case 'Sedentary':
+        return 'profile.activity_sedentary'.tr();
+      case 'Lightly Active':
+        return 'profile.activity_lightly_active'.tr();
+      case 'Moderately Active':
+        return 'profile.activity_moderately_active'.tr();
+      case 'Very Active':
+        return 'profile.activity_very_active'.tr();
       default:
         return 'profile.not_updated'.tr();
     }
@@ -459,17 +524,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ? 'onboarding.losing_weight'.tr()
               : isGaining
               ? 'onboarding.gaining_weight'.tr()
-              : 'Điều chỉnh'.tr()} '
+              : 'profile.adjusting'.tr()} '
           '${_formatNullableNum(targetWeightLoss, suffix: ' Kg')} '
-          '${'profile.duration'.tr()}: ${_formatNullableNum(durationDays, suffix: ' ngày')}';
+          '${'profile.duration'.tr()}: ${_formatNullableNum(durationDays, suffix: ' ${'profile.day_unit'.tr()}')}';
     } else if (goal == 'Being Fit' || goal == 'Keeping Weight') {
-      planLabel = 'Duy trì thể trạng hiện tại'.tr();
+      planLabel = 'profile.maintain_current'.tr();
     } else {
       planLabel = 'profile.not_updated'.tr();
     }
 
     final calorieLabel = maintenanceCalo != null && targetCalo != null
-        ? '${_formatNullableNum(maintenanceCalo)} → ${_formatNullableNum(targetCalo)} kcal/ngày'
+        ? '${_formatNullableNum(maintenanceCalo)} → ${_formatNullableNum(targetCalo)} ${'profile.kcal_per_day'.tr()}'
         : 'profile.not_updated'.tr();
 
     return Container(
@@ -542,7 +607,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.schedule_rounded,
                 title: 'profile.duration'.tr(),
                 value: durationDays != null
-                    ? _formatNullableNum(durationDays, suffix: ' days')
+                    ? _formatNullableNum(
+                        durationDays,
+                        suffix: ' ${'profile.day_unit'.tr()}',
+                      )
                     : 'profile.not_updated'.tr(),
                 color: const Color(0xFF1976D2),
               ),

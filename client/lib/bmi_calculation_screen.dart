@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'target_weight_screen.dart';
+import 'core/utils/i18n_fallback.dart';
 
 class BmiCalculationScreen extends StatefulWidget {
   final double heightCm;
@@ -21,6 +22,65 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
   late String status;
   late double diffWeight;
   late String diffLabel;
+
+  String _statusLabel(String value) {
+    switch (value) {
+      case 'Underweight':
+        return trSafe(
+          context,
+          'onboarding.bmi_status_underweight',
+          vi: 'Thiếu cân',
+          en: 'Underweight',
+        );
+      case 'Normal':
+        return trSafe(
+          context,
+          'onboarding.bmi_status_normal',
+          vi: 'Bình thường',
+          en: 'Normal',
+        );
+      case 'Overweight':
+        return trSafe(
+          context,
+          'onboarding.bmi_status_overweight',
+          vi: 'Thừa cân',
+          en: 'Overweight',
+        );
+      default:
+        return trSafe(
+          context,
+          'onboarding.bmi_status_obese',
+          vi: 'Béo phì',
+          en: 'Obese',
+        );
+    }
+  }
+
+  String _diffLabelText(String value) {
+    switch (value) {
+      case 'Your Underweight':
+        return trSafe(
+          context,
+          'onboarding.bmi_diff_underweight',
+          vi: 'Mức thiếu cân của bạn',
+          en: 'Your Underweight',
+        );
+      case 'Difference':
+        return trSafe(
+          context,
+          'onboarding.bmi_diff_difference',
+          vi: 'Chênh lệch',
+          en: 'Difference',
+        );
+      default:
+        return trSafe(
+          context,
+          'onboarding.bmi_diff_overweight',
+          vi: 'Mức thừa cân của bạn',
+          en: 'Your Overweight',
+        );
+    }
+  }
 
   @override
   void initState() {
@@ -79,8 +139,13 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. TIÊU ĐỀ
-              const Text(
-                "Your Calculation",
+              Text(
+                trSafe(
+                  context,
+                  'onboarding.your_calculation',
+                  vi: 'Kết quả tính toán của bạn',
+                  en: 'Your Calculation',
+                ),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -99,7 +164,12 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
                 child: Column(
                   children: [
                     _buildTableRow(
-                      "Your Height",
+                      trSafe(
+                        context,
+                        'onboarding.your_height',
+                        vi: 'Chiều cao của bạn',
+                        en: 'Your Height',
+                      ),
                       "${widget.heightCm.toStringAsFixed(0)} cm",
                     ),
                     const Divider(
@@ -108,7 +178,12 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
                       color: Color(0xFFE0E0E0),
                     ),
                     _buildTableRow(
-                      "Your Weight",
+                      trSafe(
+                        context,
+                        'onboarding.your_weight',
+                        vi: 'Cân nặng của bạn',
+                        en: 'Your Weight',
+                      ),
                       "${widget.weightKg.toStringAsFixed(0)} kg",
                     ),
                     const Divider(
@@ -117,8 +192,13 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
                       color: Color(0xFFE0E0E0),
                     ),
                     _buildTableRow(
-                      "Your BMI",
-                      "${bmi.toStringAsFixed(1)}($status)",
+                      trSafe(
+                        context,
+                        'onboarding.your_bmi',
+                        vi: 'BMI của bạn',
+                        en: 'Your BMI',
+                      ),
+                      "${bmi.toStringAsFixed(1)}(${_statusLabel(status)})",
                       isHighlight: true,
                       highlightColor: highlightColor,
                     ),
@@ -128,10 +208,15 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
                       color: Color(0xFFE0E0E0),
                     ),
                     _buildTableRow(
-                      diffLabel,
+                      _diffLabelText(diffLabel),
                       diffWeight > 0
                           ? "${diffWeight.toStringAsFixed(1)} kg"
-                          : "Perfect",
+                          : trSafe(
+                              context,
+                              'onboarding.bmi_perfect',
+                              vi: 'Hoàn hảo',
+                              en: 'Perfect',
+                            ),
                       isHighlight: true,
                       highlightColor: highlightColor,
                     ),
@@ -143,7 +228,12 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
 
               Center(
                 child: Text(
-                  "We need your target weight and time",
+                  trSafe(
+                    context,
+                    'onboarding.need_target_weight_time',
+                    vi: 'Chúng tôi cần mục tiêu cân nặng và thời gian của bạn',
+                    en: 'We need your target weight and time',
+                  ),
                   style: TextStyle(color: Colors.grey[500], fontSize: 14),
                 ),
               ),
@@ -172,8 +262,13 @@ class _BmiCalculationScreenState extends State<BmiCalculationScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    "Your Target",
+                  child: Text(
+                    trSafe(
+                      context,
+                      'onboarding.your_target',
+                      vi: 'Mục tiêu của bạn',
+                      en: 'Your Target',
+                    ),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

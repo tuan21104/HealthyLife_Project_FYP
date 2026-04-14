@@ -17,6 +17,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   // Biến lưu trữ tab đang được chọn (Mặc định là 0 - Home)
   late int _selectedIndex;
+  Locale? _currentLocale;
+  int _localeVersion = 0;
 
   @override
   void initState() {
@@ -24,12 +26,48 @@ class _MainScreenState extends State<MainScreen> {
     _selectedIndex = widget.initialIndex.clamp(0, 3);
   }
 
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const DiaryScreen(),
-    const SettingsScreen(),
-    const ProfileScreen(),
-  ];
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newLocale = context.locale;
+
+    if (_currentLocale == null) {
+      _currentLocale = newLocale;
+      return;
+    }
+
+    if (_currentLocale != newLocale && mounted) {
+      setState(() {
+        _currentLocale = newLocale;
+        _localeVersion++;
+      });
+    }
+  }
+
+  List<Widget> _buildPages() {
+    return [
+      KeyedSubtree(
+        key: ValueKey('home_${_currentLocale?.languageCode}_$_localeVersion'),
+        child: const HomeScreen(),
+      ),
+      KeyedSubtree(
+        key: ValueKey('diary_${_currentLocale?.languageCode}_$_localeVersion'),
+        child: const DiaryScreen(),
+      ),
+      KeyedSubtree(
+        key: ValueKey(
+          'settings_${_currentLocale?.languageCode}_$_localeVersion',
+        ),
+        child: const SettingsScreen(),
+      ),
+      KeyedSubtree(
+        key: ValueKey(
+          'profile_${_currentLocale?.languageCode}_$_localeVersion',
+        ),
+        child: const ProfileScreen(),
+      ),
+    ];
+  }
 
   // Hàm xử lý khi người dùng bấm vào một tab
   void _onItemTapped(int index) {
@@ -40,10 +78,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = _buildPages();
+
     return Scaffold(
       backgroundColor: Colors.white,
       // Phần thân trên sẽ hiển thị màn hình tương ứng với tab được chọn
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       // Thanh điều hướng bên dưới
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

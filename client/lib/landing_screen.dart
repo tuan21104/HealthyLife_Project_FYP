@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
@@ -16,13 +17,10 @@ class LandingScreen extends StatelessWidget {
             children: [
               const Spacer(),
 
-              Image.asset(
-                'assets/images/logo_green.png',
-                height: 120,
-              ),
+              Image.asset('assets/images/logo_green.png', height: 120),
               const SizedBox(height: 16),
-              const Text(
-                "Healthy life",
+              Text(
+                'app.title'.tr(),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w500,
@@ -39,7 +37,9 @@ class LandingScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -49,8 +49,8 @@ class LandingScreen extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    "Log in",
+                  child: Text(
+                    'auth.login'.tr(),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -65,16 +65,21 @@ class LandingScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Don't have an account? ", style: TextStyle(color: Colors.grey[600])),
+                  Text(
+                    '${'auth.no_account'.tr()} ',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const SignUpScreen(),
+                        ),
                       );
                     },
-                    child: const Text(
-                      "Sign up",
+                    child: Text(
+                      'auth.signup'.tr(),
                       style: TextStyle(
                         color: Color(0xFF4CAF50),
                         fontWeight: FontWeight.bold,

@@ -36,6 +36,23 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
   bool _isLoading = true;
   String _currentUserId = "";
 
+  String _mealTypeLabel(String mealType) {
+    switch (mealType) {
+      case 'Breakfast':
+        return 'diary.breakfast'.tr();
+      case 'Lunch':
+        return 'diary.lunch'.tr();
+      case 'Dinner':
+        return 'diary.dinner'.tr();
+      case 'Snack':
+        return 'diary.snack'.tr();
+      case 'Exercise':
+        return 'diary.exercise'.tr();
+      default:
+        return mealType;
+    }
+  }
+
   // 1. KHAI BÁO CÔNG CỤ CHỤP ẢNH TẠI ĐÂY
   final ImagePicker _picker = ImagePicker();
 
@@ -1036,7 +1053,7 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.mealType,
+          _mealTypeLabel(widget.mealType),
           style: const TextStyle(color: Colors.black54, fontSize: 28),
         ),
       ),

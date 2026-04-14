@@ -12,6 +12,10 @@ const UserSchema = new mongoose.Schema({
         required: true,
         unique: true // Không được trùng email
     },
+    phoneNumber: {
+        type: String,
+        default: ''
+    },
     password: {
         type: String,
         required: true
@@ -45,6 +49,10 @@ const UserSchema = new mongoose.Schema({
     },
     weight: {
         type: Number, // kg
+        default: 0
+    },
+    weeklyMovement: {
+        type: Number,
         default: 0
     },
     activityLevel: {

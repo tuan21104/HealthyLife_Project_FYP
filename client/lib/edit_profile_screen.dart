@@ -38,6 +38,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     "Very Active",
   ];
 
+  final Map<String, int> _weeklyMovementByLevel = {
+    'Sedentary': 60,
+    'Lightly Active': 150,
+    'Moderately Active': 300,
+    'Very Active': 450,
+  };
+
   String _activityLabel(String activity) {
     switch (activity) {
       case 'Sedentary':
@@ -174,6 +181,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       String birthDateStr = _selectedDate != null
           ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
           : "";
+      final int weeklyMovement =
+          _weeklyMovementByLevel[_selectedActivity] ??
+          (widget.userData['weeklyMovement'] as num?)?.toInt() ??
+          60;
 
       Map<String, dynamic> updateData = {
         'userId': widget.userData['_id'] ?? widget.userData['id'],
@@ -182,6 +193,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'weight': weight,
         'gender': _selectedGender,
         'activityLevel': _selectedActivity,
+        'weeklyMovement': weeklyMovement,
         'birthDate': birthDateStr,
         'avatarIndex': finalAvatarIndex,
         'avatarUrl': finalAvatarUrl,

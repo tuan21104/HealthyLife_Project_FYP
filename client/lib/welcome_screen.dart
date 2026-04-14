@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
+import 'core/utils/i18n_fallback.dart';
 import 'user_info_step1_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -33,7 +33,12 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 Text(
-                  'app.title'.tr(),
+                  trSafe(
+                    context,
+                    'app.title',
+                    vi: 'Healthy Life',
+                    en: 'Healthy Life',
+                  ),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 24,
@@ -46,7 +51,12 @@ class WelcomeScreen extends StatelessWidget {
                 const Spacer(flex: 1),
 
                 Text(
-                  'onboarding.welcome'.tr(),
+                  trSafe(
+                    context,
+                    'onboarding.welcome',
+                    vi: 'Chào mừng đến Healthy Life',
+                    en: 'Welcome to Healthy Life',
+                  ),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 26,
@@ -57,7 +67,12 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 Text(
-                  'onboarding.welcome_subtitle'.tr(),
+                  trSafe(
+                    context,
+                    'onboarding.welcome_subtitle',
+                    vi: 'Trợ lý sức khỏe cá nhân của bạn',
+                    en: 'Your personal health companion',
+                  ),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -89,7 +104,12 @@ class WelcomeScreen extends StatelessWidget {
                       elevation: 0,
                     ),
                     child: Text(
-                      'onboarding.get_started'.tr(),
+                      trSafe(
+                        context,
+                        'onboarding.get_started',
+                        vi: 'Bắt đầu',
+                        en: 'Get Started',
+                      ),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

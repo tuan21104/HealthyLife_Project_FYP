@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'main_screen.dart';
 import 'ai_menu_screen.dart';
+import 'core/utils/i18n_fallback.dart';
 
 class CongratulationsScreen extends StatefulWidget {
   // Các thông số này sau này sẽ được truyền từ màn hình Target Weight sang
@@ -92,7 +92,12 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                           child: Row(
                             children: [
                               Text(
-                                'common.ok'.tr(),
+                                trSafe(
+                                  context,
+                                  'common.ok',
+                                  vi: 'OK',
+                                  en: 'OK',
+                                ),
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey,
@@ -122,7 +127,12 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'onboarding.congratulations'.tr(),
+            trSafe(
+              context,
+              'onboarding.congratulations',
+              vi: 'Chúc mừng!',
+              en: 'Congratulations!',
+            ),
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -139,7 +149,12 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
           ),
           const SizedBox(height: 40),
           Text(
-            'onboarding.profile_complete'.tr(),
+            trSafe(
+              context,
+              'onboarding.profile_complete',
+              vi: 'Hồ sơ của bạn đã hoàn tất',
+              en: 'Your profile is complete',
+            ),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 18,
@@ -160,7 +175,12 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'onboarding.you_should_take'.tr(),
+            trSafe(
+              context,
+              'onboarding.you_should_take',
+              vi: 'Bạn nên nạp',
+              en: 'You should take',
+            ),
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 10),
@@ -174,7 +194,12 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            'onboarding.maintain_weight_hint'.tr(),
+            trSafe(
+              context,
+              'onboarding.maintain_weight_hint',
+              vi: 'Để duy trì cân nặng hiện tại',
+              en: 'To maintain your current weight',
+            ),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
@@ -218,7 +243,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
               children: [
                 TextSpan(
                   text:
-                      '${'onboarding.goal_prefix'.tr()} ${widget.isLosing ? 'onboarding.losing_weight'.tr() : 'onboarding.gaining_weight'.tr()}\n',
+                      '${trSafe(context, 'onboarding.goal_prefix', vi: 'Mục tiêu của bạn: ', en: 'Your goal: ')} ${widget.isLosing ? trSafe(context, 'onboarding.losing_weight', vi: 'Giảm cân', en: 'Losing Weight') : trSafe(context, 'onboarding.gaining_weight', vi: 'Tăng cân', en: 'Gaining Weight')}\n',
                 ),
                 TextSpan(
                   text: "${widget.targetWeightLoss}kg ",
@@ -227,15 +252,22 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                     color: Color(0xFF4CAF50),
                   ),
                 ),
-                TextSpan(text: '${'onboarding.in'.tr()} '),
                 TextSpan(
-                  text: "${widget.durationDays} days, ",
+                  text:
+                      '${trSafe(context, 'onboarding.in', vi: 'trong', en: 'in')} ',
+                ),
+                TextSpan(
+                  text:
+                      "${widget.durationDays} ${trSafe(context, 'onboarding.days_suffix', vi: 'ngày', en: 'days')}, ",
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.orange,
                   ),
                 ),
-                TextSpan(text: '${'onboarding.you_should_take'.tr()}\n'),
+                TextSpan(
+                  text:
+                      '${trSafe(context, 'onboarding.you_should_take', vi: 'Bạn nên nạp', en: 'You should take')}\n',
+                ),
                 TextSpan(
                   text: "${widget.targetCalo} kcal ",
                   style: const TextStyle(
@@ -243,7 +275,14 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                     color: Colors.black87,
                   ),
                 ),
-                TextSpan(text: 'onboarding.per_day'.tr()),
+                TextSpan(
+                  text: trSafe(
+                    context,
+                    'onboarding.per_day',
+                    vi: 'mỗi ngày',
+                    en: 'per day',
+                  ),
+                ),
               ],
             ),
           ),
@@ -267,7 +306,12 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
               },
               icon: const Icon(Icons.auto_awesome, color: Colors.white),
               label: Text(
-                'onboarding.generate_ai_menu'.tr(),
+                trSafe(
+                  context,
+                  'onboarding.generate_ai_menu',
+                  vi: 'Tạo thực đơn AI',
+                  en: 'Generate AI Menu',
+                ),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -307,7 +351,7 @@ class _CongratulationsScreenState extends State<CongratulationsScreen> {
                 elevation: 0,
               ),
               child: Text(
-                'nav.home'.tr(),
+                trSafe(context, 'nav.home', vi: 'Trang chủ', en: 'Home'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

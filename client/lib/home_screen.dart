@@ -22,10 +22,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final Color _lightGreenColor = const Color(0xFFE8F5E9);
   final Color _bgColor = const Color(0xFFF8F9FA);
   final NumberFormat _vndFormat = NumberFormat('#,###', 'en_US');
+  Locale? _currentLocale;
 
   bool _isLoading = true;
   bool _isFetched = false;
-  String _userName = "User";
+  String _userName = 'home.user_fallback'.tr();
   double targetCalo = 1800;
   double currentCaloTaken = 0;
   double currentBurned = 0;
@@ -40,6 +41,21 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _fetchRealData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newLocale = context.locale;
+    if (_currentLocale == null) {
+      _currentLocale = newLocale;
+      return;
+    }
+
+    if (_currentLocale != newLocale && mounted) {
+      _currentLocale = newLocale;
+      setState(() {});
+    }
   }
 
   Future<void> _fetchRealData() async {
@@ -63,7 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           // 1. Cập nhật tên từ Profile
           if (userProfile != null && userProfile['user'] != null) {
-            _userName = userProfile['user']['name'] ?? "User";
+            _userName =
+                userProfile['user']['name'] ?? 'home.user_fallback'.tr();
           }
 
           // 2. Cập nhật thông số từ Statistics
@@ -156,7 +173,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
-    String todayStr = DateFormat('EEEE, dd MMMM').format(DateTime.now());
+    String todayStr = DateFormat(
+      'EEEE, dd MMMM',
+      context.locale.toLanguageTag(),
+    ).format(DateTime.now());
     return Row(
       children: [
         Container(
@@ -191,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Hello, $_userName!",
+                "${'home.hello'.tr()}, $_userName!",
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -249,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: Center(
                     child: _buildStatColumn(
-                      "EXPENSE",
+                      'home.expense_short'.tr(),
                       "${_vndFormat.format(currentExpense)} VNĐ",
                     ),
                   ),
@@ -258,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: Center(
                     child: _buildStatColumn(
-                      "BURNED",
+                      'home.burned_short'.tr(),
                       currentBurned.toStringAsFixed(0),
                     ),
                   ),
@@ -328,9 +348,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Text(
-                  "kcal taken",
-                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                Text(
+                  'home.kcal_taken'.tr(),
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
               ],
             ),
@@ -382,10 +402,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 final value = isTaken
                     ? weeklyCalo[dayIndex]
                     : weeklyBurned[dayIndex];
-                final title = isTaken ? 'Nạp' : 'Burnt';
+                final localizedTitle = isTaken
+                    ? 'home.intake_short'.tr()
+                    : 'home.burned_short'.tr();
 
                 return BarTooltipItem(
-                  '$dayLabel\n$title: ${value.toStringAsFixed(0)} kcal',
+                  '$dayLabel\n$localizedTitle: ${value.toStringAsFixed(0)} kcal',
                   const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -405,13 +427,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     Duration(days: 6 - value.toInt()),
                   );
                   List<String> days = [
-                    'CN',
-                    'T2',
-                    'T3',
-                    'T4',
-                    'T5',
-                    'T6',
-                    'T7',
+                    'home.sun_short'.tr(),
+                    'home.mon_short'.tr(),
+                    'home.tue_short'.tr(),
+                    'home.wed_short'.tr(),
+                    'home.thu_short'.tr(),
+                    'home.fri_short'.tr(),
+                    'home.sat_short'.tr(),
                   ];
                   return SideTitleWidget(
                     meta: meta,
@@ -508,7 +530,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 showTitles: true,
                 getTitlesWidget: (val, meta) => val % 3 == 0
                     ? Text(
-                        ['Mon', 'Thu', 'Sun'][(val / 3).toInt()],
+                        [
+                          'home.mon_short'.tr(),
+                          'home.thu_short'.tr(),
+                          'home.sun_short'.tr(),
+                        ][(val / 3).toInt()],
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 12,

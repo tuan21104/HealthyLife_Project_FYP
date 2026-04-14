@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'services/auth_service.dart';
 import 'bmi_calculation_screen.dart';
 import 'modal_effects.dart';
+import 'core/utils/i18n_fallback.dart';
 
 class UserInfoStep2Screen extends StatefulWidget {
   final String email;
@@ -23,13 +23,35 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
   bool _isKg = true;
 
   String? _selectedActivity;
+  String? _selectedGoal;
   DateTime? _selectedDate;
 
   // --- BIẾN QUẢN LÝ AVATAR ---
   int? _selectedAvatarIndex; // Dành cho ảnh có sẵn (asset)
   File? _profileImageFile; // Dành cho ảnh thật chụp/chọn từ máy
   final ImagePicker _picker = ImagePicker();
-  int _selectedPicOption = 0; // Lưu lựa chọn Radio Button
+  bool _isSaving = false;
+
+  static const TextStyle _titleStyle = TextStyle(
+    fontSize: 30,
+    fontWeight: FontWeight.w700,
+    color: Colors.black,
+  );
+  static const TextStyle _subtitleStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    color: Colors.grey,
+  );
+  static const TextStyle _buttonTextStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+  );
+  static const TextStyle _fieldValueStyle = TextStyle(
+    color: Colors.black,
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+  );
 
   final List<String> _activities = [
     "Sedentary",
@@ -38,12 +60,89 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     "Very Active",
   ];
 
-  final Map<String, String> _activityLabelKeys = {
-    'Sedentary': 'onboarding.losing_weight',
-    'Lightly Active': 'onboarding.gaining_weight',
-    'Moderately Active': 'onboarding.keeping_weight',
-    'Very Active': 'onboarding.being_fit',
+  final List<String> _goals = [
+    'Losing Weight',
+    'Gaining Weight',
+    'Keeping Weight',
+    'Being Fit',
+  ];
+
+  final Map<String, int> _weeklyMovementByLevel = {
+    'Sedentary': 60,
+    'Lightly Active': 150,
+    'Moderately Active': 300,
+    'Very Active': 450,
   };
+
+  String _activityLabel(String activity) {
+    switch (activity) {
+      case 'Sedentary':
+        return trSafe(
+          context,
+          'profile.activity_sedentary',
+          vi: 'Ít vận động',
+          en: 'Sedentary',
+        );
+      case 'Lightly Active':
+        return trSafe(
+          context,
+          'profile.activity_lightly_active',
+          vi: 'Vận động nhẹ',
+          en: 'Lightly Active',
+        );
+      case 'Moderately Active':
+        return trSafe(
+          context,
+          'profile.activity_moderately_active',
+          vi: 'Vận động vừa',
+          en: 'Moderately Active',
+        );
+      case 'Very Active':
+        return trSafe(
+          context,
+          'profile.activity_very_active',
+          vi: 'Vận động cao',
+          en: 'Very Active',
+        );
+      default:
+        return activity;
+    }
+  }
+
+  String _goalLabel(String goal) {
+    switch (goal) {
+      case 'Losing Weight':
+        return trSafe(
+          context,
+          'onboarding.losing_weight',
+          vi: 'Giảm cân',
+          en: 'Losing Weight',
+        );
+      case 'Gaining Weight':
+        return trSafe(
+          context,
+          'onboarding.gaining_weight',
+          vi: 'Tăng cân',
+          en: 'Gaining Weight',
+        );
+      case 'Keeping Weight':
+        return trSafe(
+          context,
+          'onboarding.keeping_weight',
+          vi: 'Giữ cân',
+          en: 'Keeping Weight',
+        );
+      case 'Being Fit':
+        return trSafe(
+          context,
+          'onboarding.being_fit',
+          vi: 'Giữ dáng',
+          en: 'Being Fit',
+        );
+      default:
+        return goal;
+    }
+  }
 
   // --- HÀM MỞ CAMERA/GALLERY ---
   Future<void> _pickImage(ImageSource source) async {
@@ -66,15 +165,28 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     }
   }
 
-  void _handleCalculate() async {
+  @override
+  void dispose() {
+    _heightController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCalculate() async {
     if (_heightController.text.isEmpty ||
         _weightController.text.isEmpty ||
+        _selectedGoal == null ||
         _selectedDate == null ||
         _selectedActivity == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'onboarding.fill_all_fields'.tr(),
+            trSafe(
+              context,
+              'onboarding.fill_all_fields',
+              vi: 'Vui lòng điền đầy đủ tất cả các trường',
+              en: 'Please fill all fields',
+            ),
             style: const TextStyle(color: Colors.white),
           ),
           backgroundColor: Colors.red,
@@ -83,28 +195,70 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
       return;
     }
 
+    final weeklyMovement = _weeklyMovementByLevel[_selectedActivity] ?? 0;
+
+    setState(() => _isSaving = true);
+
     double height = double.parse(_heightController.text);
     if (!_isCm) height = height * 30.48; // Chuyển ft sang cm
 
     double weight = double.parse(_weightController.text);
     if (!_isKg) weight = weight * 0.453592; // Chuyển lbs sang kg
 
+    String? uploadedAvatarUrl;
+    int? finalAvatarIndex = _selectedAvatarIndex;
+
+    if (_profileImageFile != null) {
+      uploadedAvatarUrl = await AuthService.uploadImage(_profileImageFile!);
+      if (uploadedAvatarUrl == null || uploadedAvatarUrl.isEmpty) {
+        if (!mounted) return;
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              trSafe(
+                context,
+                'onboarding.avatar_upload_failed',
+                vi: 'Không thể tải ảnh avatar lên máy chủ.',
+                en: 'Unable to upload avatar to server.',
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      finalAvatarIndex = null;
+    }
+
     bool success = await AuthService.updateProfile({
       'height': height,
       'weight': weight,
+      'weeklyMovement': weeklyMovement,
+      'goal': _selectedGoal,
       'activityLevel': _selectedActivity,
       // ĐÃ XÓA GENDER Ở ĐÂY VÌ ĐÃ LƯU Ở STEP 1
       'birthDate':
           "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}",
-      'avatarIndex': _selectedAvatarIndex,
+      'avatarIndex': finalAvatarIndex,
+      'avatarUrl': uploadedAvatarUrl,
     });
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
 
     if (success) {
       await AuthService.clearPendingOnboarding();
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('onboarding.profile_updated'.tr()),
+          content: Text(
+            trSafe(
+              context,
+              'onboarding.profile_updated',
+              vi: 'Hồ sơ được cập nhật thành công',
+              en: 'Profile updated successfully',
+            ),
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -138,17 +292,23 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'profile.your_info'.tr(),
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                trSafe(
+                  context,
+                  'profile.your_info',
+                  vi: 'Thông tin của bạn',
+                  en: 'Your Info',
                 ),
+                style: _titleStyle,
               ),
               const SizedBox(height: 8),
               Text(
-                'onboarding.step_2_of_2'.tr(),
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                trSafe(
+                  context,
+                  'onboarding.step_2_of_2',
+                  vi: 'Bước 2/2',
+                  en: 'Step 2 of 2',
+                ),
+                style: _subtitleStyle,
               ),
               const SizedBox(height: 30),
 
@@ -181,8 +341,17 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'profile.edit_profile'.tr(),
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      trSafe(
+                        context,
+                        'profile.edit_profile',
+                        vi: 'Chỉnh sửa hồ sơ',
+                        en: 'Edit Profile',
+                      ),
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -191,7 +360,12 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
 
               _buildInputWithToggle(
                 controller: _heightController,
-                label: 'onboarding.height'.tr(),
+                label: trSafe(
+                  context,
+                  'onboarding.height',
+                  vi: 'Chiều cao (cm)',
+                  en: 'Height (cm)',
+                ),
                 isMetric: _isCm,
                 unit1: "ft",
                 unit2: "cm",
@@ -201,7 +375,12 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
 
               _buildInputWithToggle(
                 controller: _weightController,
-                label: 'onboarding.weight'.tr(),
+                label: trSafe(
+                  context,
+                  'onboarding.weight',
+                  vi: 'Cân nặng (kg)',
+                  en: 'Weight (kg)',
+                ),
                 isMetric: _isKg,
                 unit1: "lbs",
                 unit2: "kg",
@@ -210,13 +389,30 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               const SizedBox(height: 20),
 
               GestureDetector(
+                onTap: _showGoalDialog,
+                child: _buildDropdownField(
+                  trSafe(
+                    context,
+                    'onboarding.you_are_here_for',
+                    vi: 'Mục tiêu của bạn',
+                    en: "You're here for",
+                  ),
+                  _selectedGoal != null ? _goalLabel(_selectedGoal!) : '',
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              GestureDetector(
                 onTap: _showActivityDialog,
                 child: _buildDropdownField(
-                  'onboarding.goal'.tr(),
+                  trSafe(
+                    context,
+                    'profile.activity_level',
+                    vi: 'Mức độ vận động',
+                    en: 'Activity Level',
+                  ),
                   _selectedActivity != null
-                      ? (_activityLabelKeys[_selectedActivity!] ??
-                                'onboarding.goal')
-                            .tr()
+                      ? _activityLabel(_selectedActivity!)
                       : '',
                 ),
               ),
@@ -226,7 +422,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
               GestureDetector(
                 onTap: () => _selectDate(context),
                 child: _buildDropdownField(
-                  'onboarding.age'.tr(),
+                  trSafe(context, 'onboarding.age', vi: 'Tuổi', en: 'Age'),
                   _selectedDate != null
                       ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
                       : '',
@@ -238,7 +434,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _handleCalculate,
+                  onPressed: _isSaving ? null : _handleCalculate,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     shape: RoundedRectangleBorder(
@@ -246,14 +442,26 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                     ),
                     elevation: 0,
                   ),
-                  child: Text(
-                    'onboarding.finish'.tr(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          trSafe(
+                            context,
+                            'onboarding.finish',
+                            vi: 'Hoàn thành',
+                            en: 'Finish',
+                          ),
+                          style: _buttonTextStyle,
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -271,13 +479,18 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
     required String unit1,
     required String unit2,
     required VoidCallback onToggle,
+    bool isReadOnlyToggle = false,
   }) {
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.grey[500]),
+        labelStyle: TextStyle(
+          color: Colors.grey[500],
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
@@ -291,7 +504,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
           borderSide: BorderSide(color: Colors.grey[300]!),
         ),
         suffixIcon: GestureDetector(
-          onTap: onToggle,
+          onTap: isReadOnlyToggle ? null : onToggle,
           child: Container(
             margin: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -308,6 +521,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
           ),
         ),
       ),
+      style: _fieldValueStyle,
     );
   }
 
@@ -343,14 +557,14 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
             children: [
               Text(
                 label,
-                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               if (value.isNotEmpty) const SizedBox(height: 4),
-              if (value.isNotEmpty)
-                Text(
-                  value,
-                  style: const TextStyle(color: Colors.black, fontSize: 16),
-                ),
+              if (value.isNotEmpty) Text(value, style: _fieldValueStyle),
             ],
           ),
           const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
@@ -360,87 +574,84 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
   }
 
   void _showProfilePictureDialog() {
-    _selectedPicOption = 0;
-
-    ModalEffects.showScaleFadeDialog(
+    showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'profile.title'.tr(),
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.grey),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildRadioOption('common.add'.tr(), 0),
-              _buildRadioOption('common.edit'.tr(), 1),
-              _buildRadioOption('common.confirm'.tr(), 2),
-              _buildRadioOption('common.delete'.tr(), 3),
-            ],
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.face_retouching_natural),
+                  title: Text(
+                    trSafe(
+                      context,
+                      'profile.avatar_choose_available',
+                      vi: 'Chọn avatar có sẵn',
+                      en: 'Choose default avatar',
+                    ),
                   ),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-
-                  if (_selectedPicOption == 0) {
+                  onTap: () {
+                    Navigator.pop(context);
                     _showAvatarGridDialog();
-                  } else if (_selectedPicOption == 1) {
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: Text(
+                    trSafe(
+                      context,
+                      'profile.choose_from_library',
+                      vi: 'Chọn từ thư viện',
+                      en: 'Choose from library',
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
                     _pickImage(ImageSource.gallery);
-                  } else if (_selectedPicOption == 2) {
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: Text(
+                    trSafe(
+                      context,
+                      'profile.take_photo',
+                      vi: 'Chụp ảnh',
+                      en: 'Take photo',
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
                     _pickImage(ImageSource.camera);
-                  } else if (_selectedPicOption == 3) {
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: Text(
+                    trSafe(
+                      context,
+                      'profile.remove_current_picture',
+                      vi: 'Xóa ảnh hiện tại',
+                      en: 'Remove current picture',
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
                     setState(() {
                       _profileImageFile = null;
                       _selectedAvatarIndex = null;
                     });
-                  }
-                },
-                child: Text(
-                  'common.ok'.tr(),
-                  style: const TextStyle(color: Colors.white),
+                  },
                 ),
-              ),
+              ],
             ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildRadioOption(String title, int value) {
-    return StatefulBuilder(
-      builder: (context, setStateSB) {
-        return RadioListTile<int>(
-          title: Text(title, style: const TextStyle(fontSize: 14)),
-          value: value,
-          groupValue: _selectedPicOption,
-          activeColor: const Color(0xFF4CAF50),
-          contentPadding: EdgeInsets.zero,
-          onChanged: (val) {
-            setStateSB(() => _selectedPicOption = val!);
-          },
+          ),
         );
       },
     );
@@ -458,8 +669,8 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'profile.title'.tr(),
-                style: TextStyle(fontWeight: FontWeight.bold),
+                trSafe(context, 'profile.title', vi: 'Hồ sơ', en: 'Profile'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: Colors.grey),
@@ -503,7 +714,7 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
                 ),
                 onPressed: () => Navigator.pop(context),
                 child: Text(
-                  'common.ok'.tr(),
+                  trSafe(context, 'common.ok', vi: 'OK', en: 'OK'),
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -523,19 +734,61 @@ class _UserInfoStep2ScreenState extends State<UserInfoStep2Screen> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
-            'onboarding.goal'.tr(),
-            style: TextStyle(fontWeight: FontWeight.bold),
+            trSafe(
+              context,
+              'profile.activity_level',
+              vi: 'Mức độ vận động',
+              en: 'Activity Level',
+            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: _activities
                 .map(
                   (act) => ListTile(
-                    title: Text(
-                      (_activityLabelKeys[act] ?? 'onboarding.goal').tr(),
-                    ),
+                    title: Text(_activityLabel(act)),
                     onTap: () {
                       setState(() => _selectedActivity = act);
+                      Navigator.pop(context);
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showGoalDialog() {
+    ModalEffects.showScaleFadeDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            trSafe(
+              context,
+              'onboarding.you_are_here_for',
+              vi: 'Mục tiêu của bạn',
+              en: "You're here for",
+            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _goals
+                .map(
+                  (goal) => ListTile(
+                    title: Text(_goalLabel(goal)),
+                    trailing: _selectedGoal == goal
+                        ? const Icon(Icons.check, color: Color(0xFF4CAF50))
+                        : null,
+                    onTap: () {
+                      setState(() => _selectedGoal = goal);
                       Navigator.pop(context);
                     },
                   ),

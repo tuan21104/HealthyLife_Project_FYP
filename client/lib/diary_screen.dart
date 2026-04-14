@@ -249,6 +249,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
     }
   }
 
+  String _trSafe(String key, String fallback) {
+    final translated = key.tr();
+    return translated == key ? fallback : translated;
+  }
+
   void _deleteFood(String mealType, int index) {
     setState(() {
       if (mealType == "Breakfast")
@@ -473,11 +478,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
       ),
       builder: (context) {
         final actions = [
-          {'title': 'Breakfast', 'icon': Icons.free_breakfast_rounded},
-          {'title': 'Lunch', 'icon': Icons.lunch_dining_rounded},
-          {'title': 'Dinner', 'icon': Icons.dinner_dining_rounded},
-          {'title': 'Snack', 'icon': Icons.icecream_rounded},
-          {'title': 'Exercise', 'icon': Icons.fitness_center_rounded},
+          {'key': 'Breakfast', 'icon': Icons.free_breakfast_rounded},
+          {'key': 'Lunch', 'icon': Icons.lunch_dining_rounded},
+          {'key': 'Dinner', 'icon': Icons.dinner_dining_rounded},
+          {'key': 'Snack', 'icon': Icons.icecream_rounded},
+          {'key': 'Exercise', 'icon': Icons.fitness_center_rounded},
         ];
 
         return SafeArea(
@@ -493,12 +498,12 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         color: _greenColor,
                       ),
                       title: Text(
-                        item['title'] as String,
+                        _mealLabel(item['key'] as String),
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       onTap: () {
                         Navigator.pop(context);
-                        _handleAddFood(item['title'] as String);
+                        _handleAddFood(item['key'] as String);
                       },
                     ),
                   )
@@ -936,12 +941,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text(
-          _mealLabel(title),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-            color: Colors.black54,
+        title: SizedBox(
+          width: double.infinity,
+          child: Text(
+            _mealLabel(title),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.black54,
+            ),
           ),
         ),
         children: [
@@ -957,7 +966,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "Total Energy: ${mealTotalCalo.toStringAsFixed(1)} Kcal",
+                    "${_trSafe('diary.total_energy', 'Tổng năng lượng')}: ${mealTotalCalo.toStringAsFixed(1)} Kcal",
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.black54,
@@ -965,14 +974,14 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       flex: 2,
                       child: Text(
-                        "Name",
-                        style: TextStyle(
+                        _trSafe('diary.table_name', 'Tên'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -980,8 +989,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        "Gram",
-                        style: TextStyle(
+                        _trSafe('diary.table_gram', 'Gram'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -989,8 +998,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        "Kcal",
-                        style: TextStyle(
+                        _trSafe('diary.table_kcal', 'Kcal'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -998,8 +1007,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        "Carb",
-                        style: TextStyle(
+                        _trSafe('diary.table_carb', 'Carb'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -1007,8 +1016,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        "Protein",
-                        style: TextStyle(
+                        _trSafe('diary.table_protein', 'Protein'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -1016,8 +1025,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        "Fat",
-                        style: TextStyle(
+                        _trSafe('diary.table_fat', 'Fat'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -1027,11 +1036,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (foods.isEmpty)
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Chưa có dữ liệu',
-                      style: TextStyle(color: Colors.black45),
+                      _trSafe('diary.no_data', 'Chưa có dữ liệu'),
+                      style: const TextStyle(color: Colors.black45),
                     ),
                   )
                 else

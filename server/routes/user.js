@@ -18,6 +18,23 @@ function normalizeActivityLevel(value) {
   return alias[normalized] || normalized;
 }
 
+function normalizeGender(value) {
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim();
+  const alias = {
+    Male: 'Male',
+    male: 'Male',
+    Female: 'Female',
+    female: 'Female',
+    Other: 'Other',
+    other: 'Other',
+    'onboarding.male': 'Male',
+    'onboarding.female': 'Female',
+    'onboarding.other': 'Other',
+  };
+  return alias[normalized] || normalized;
+}
+
 // 1. API LẤY THÔNG TIN PROFILE
 router.get('/:id', async (req, res) => {
   try {
@@ -53,12 +70,14 @@ router.put('/update', async (req, res) => {
     const allowedFields = [
       'name',
       'email',
+      'phoneNumber',
       'avatarUrl',
       'avatarIndex',
       'gender',
       'age',
       'height',
       'weight',
+      'weeklyMovement',
       'activityLevel',
       'goal',
       'birthDate',
@@ -82,10 +101,22 @@ router.put('/update', async (req, res) => {
       sanitizedUpdate.activityLevel = normalizeActivityLevel(sanitizedUpdate.activityLevel);
     }
 
+    if (sanitizedUpdate.gender !== undefined) {
+      sanitizedUpdate.gender = normalizeGender(sanitizedUpdate.gender);
+      if (!['Male', 'Female', 'Other'].includes(sanitizedUpdate.gender)) {
+        return res.status(400).json({ success: false, message: 'gender không hợp lệ' });
+      }
+    }
+
+    if (sanitizedUpdate.phoneNumber !== undefined) {
+      sanitizedUpdate.phoneNumber = String(sanitizedUpdate.phoneNumber).trim();
+    }
+
     const numericFields = [
       'age',
       'height',
       'weight',
+      'weeklyMovement',
       'dailyBudget',
       'monthlyBudget',
       'targetWeight',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:math';
 import 'congratulations_screen.dart';
 import 'services/auth_service.dart';
@@ -31,6 +32,28 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
   // Lưu trữ dữ liệu tải về từ DB
   Map<String, dynamic>? _userData;
   bool _isLoadingData = true;
+
+  String _trSafe(String key, {required String vi, required String en}) {
+    final translated = key.tr();
+    if (translated != key) return translated;
+    return context.locale.languageCode == 'vi' ? vi : en;
+  }
+
+  String _trSafeNamed(
+    String key, {
+    required Map<String, String> namedArgs,
+    required String vi,
+    required String en,
+  }) {
+    final translated = key.tr(namedArgs: namedArgs);
+    if (translated != key) return translated;
+    final template = context.locale.languageCode == 'vi' ? vi : en;
+    var resolved = template;
+    namedArgs.forEach((k, v) {
+      resolved = resolved.replaceAll('{$k}', v);
+    });
+    return resolved;
+  }
 
   @override
   void initState() {
@@ -76,8 +99,14 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
   void _checkHealthWarningAndProceed() {
     if (_isLoadingData || _userData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Đang đồng bộ dữ liệu y khoa, vui lòng chờ..."),
+        SnackBar(
+          content: Text(
+            _trSafe(
+              'onboarding.syncing_medical_data',
+              vi: 'Đang đồng bộ dữ liệu y khoa, vui lòng chờ...',
+              en: 'Syncing your medical data, please wait...',
+            ),
+          ),
         ),
       );
       return;
@@ -115,11 +144,19 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
-          children: const [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            SizedBox(width: 8),
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
             Text(
-              "Cảnh báo Y khoa",
+              _trSafe(
+                'onboarding.medical_warning_title',
+                vi: 'Cảnh báo y khoa',
+                en: 'Medical Warning',
+              ),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.orange,
@@ -129,16 +166,23 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
           ],
         ),
         content: Text(
-          "Mục tiêu của bạn tương đương việc thay đổi ${kgPerWeek.toStringAsFixed(1)} kg/tuần.\n\n"
-          "Theo chuẩn y tế, tốc độ an toàn tối đa là 1.0 kg/tuần để tránh suy nhược cơ thể hoặc mất cơ. "
-          "Chuyên gia khuyến nghị bạn nên tăng số ngày hoặc giảm bớt số cân mục tiêu.",
+          _trSafeNamed(
+            'onboarding.medical_warning_message',
+            namedArgs: {'kgPerWeek': kgPerWeek.toStringAsFixed(1)},
+            vi: 'Mục tiêu của bạn tương đương việc thay đổi {kgPerWeek} kg/tuần.\n\nTheo chuẩn y tế, tốc độ an toàn tối đa là 1.0 kg/tuần để tránh suy nhược cơ thể hoặc mất cơ. Chuyên gia khuyến nghị bạn nên tăng số ngày hoặc giảm bớt số cân mục tiêu.',
+            en: 'Your goal equals a change of {kgPerWeek} kg/week.\n\nAccording to medical standards, the maximum safe rate is 1.0 kg/week to avoid weakness or muscle loss. Experts recommend increasing the number of days or reducing your target weight change.',
+          ),
           style: const TextStyle(height: 1.5, fontSize: 15),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context), // Đóng hộp thoại để sửa số
-            child: const Text(
-              "Sửa lại mục tiêu",
+            child: Text(
+              _trSafe(
+                'onboarding.edit_goal',
+                vi: 'Sửa lại mục tiêu',
+                en: 'Edit goal',
+              ),
               style: TextStyle(color: Colors.grey, fontSize: 16),
             ),
           ),
@@ -154,8 +198,12 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
               Navigator.pop(context); // Đóng hộp thoại
               onContinue(); // Vẫn cho phép đi tiếp nếu người dùng khăng khăng muốn
             },
-            child: const Text(
-              "Vẫn tiếp tục",
+            child: Text(
+              _trSafe(
+                'onboarding.continue_anyway',
+                vi: 'Vẫn tiếp tục',
+                en: 'Continue anyway',
+              ),
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -250,8 +298,12 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.grey),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Your Target Weight",
+        title: Text(
+          _trSafe(
+            'onboarding.target_weight_title',
+            vi: 'Cân nặng mục tiêu của bạn',
+            en: 'Your Target Weight',
+          ),
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
       ),
@@ -264,7 +316,11 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
               const SizedBox(height: 40),
 
               Text(
-                "Your Healthy weight range:",
+                _trSafe(
+                  'onboarding.healthy_weight_range',
+                  vi: 'Khoảng cân nặng khỏe mạnh của bạn:',
+                  en: 'Your healthy weight range:',
+                ),
                 style: TextStyle(fontSize: 18, color: Colors.grey[600]),
               ),
               const SizedBox(height: 10),
@@ -280,7 +336,11 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
               const SizedBox(height: 40),
 
               Text(
-                "Our Suggestion:",
+                _trSafe(
+                  'onboarding.our_suggestion',
+                  vi: 'Đề xuất của chúng tôi:',
+                  en: 'Our Suggestion:',
+                ),
                 style: TextStyle(fontSize: 18, color: Colors.grey[600]),
               ),
               const SizedBox(height: 10),
@@ -293,7 +353,10 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                   children: [
-                    TextSpan(text: "To ${_isLosing ? 'lose' : 'gain'} "),
+                    TextSpan(
+                      text:
+                          '${_trSafe('onboarding.to', vi: 'Để', en: 'To')} ${_isLosing ? _trSafe('onboarding.lose_verb', vi: 'giảm', en: 'lose') : _trSafe('onboarding.gain_verb', vi: 'tăng', en: 'gain')} ',
+                    ),
                     TextSpan(
                       text: "${_suggestedWeightLoss.toStringAsFixed(1)} kg ",
                       style: const TextStyle(
@@ -301,9 +364,13 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const TextSpan(text: "in "),
                     TextSpan(
-                      text: "$_suggestedDays days.",
+                      text:
+                          '${_trSafe('onboarding.in', vi: 'trong', en: 'in')} ',
+                    ),
+                    TextSpan(
+                      text:
+                          '$_suggestedDays ${_trSafe('onboarding.days_suffix', vi: 'ngày', en: 'days')}.',
                       style: const TextStyle(
                         color: Color(0xFF4CAF50),
                         fontWeight: FontWeight.bold,
@@ -316,18 +383,34 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
               const SizedBox(height: 60),
 
               Text(
-                "Choose a logical weight and duration",
+                _trSafe(
+                  'onboarding.choose_logical_weight_duration',
+                  vi: 'Chọn mức cân nặng và thời gian hợp lý',
+                  en: 'Choose a logical weight and duration',
+                ),
                 style: TextStyle(fontSize: 14, color: Colors.grey[400]),
               ),
               const SizedBox(height: 16),
 
               _buildInputWithSuffix(
-                "Target Weight",
+                _trSafe(
+                  'onboarding.target_weight_input',
+                  vi: 'Cân nặng mục tiêu',
+                  en: 'Target Weight',
+                ),
                 _targetWeightController,
-                "kg",
+                _trSafe('onboarding.weight_suffix', vi: 'kg', en: 'kg'),
               ),
               const SizedBox(height: 20),
-              _buildInputWithSuffix("During (days)", _daysController, "days"),
+              _buildInputWithSuffix(
+                _trSafe(
+                  'onboarding.duration_input',
+                  vi: 'Trong (ngày)',
+                  en: 'During (days)',
+                ),
+                _daysController,
+                _trSafe('onboarding.days_suffix', vi: 'ngày', en: 'days'),
+              ),
 
               const SizedBox(height: 40),
 
@@ -353,8 +436,12 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          "Let's see!",
+                      : Text(
+                          _trSafe(
+                            'onboarding.lets_see',
+                            vi: 'Xem kết quả!',
+                            en: "Let's see!",
+                          ),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

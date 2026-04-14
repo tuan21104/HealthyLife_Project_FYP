@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'services/auth_service.dart';
 import 'user_info_step2_screen.dart';
 import 'landing_screen.dart';
 import 'modal_effects.dart';
+import 'core/utils/i18n_fallback.dart';
 
 class UserInfoStep1Screen extends StatefulWidget {
   final String email;
@@ -16,24 +16,39 @@ class UserInfoStep1Screen extends StatefulWidget {
 class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
+  final TextEditingController _phoneNumberController = TextEditingController();
 
   String? _selectedGender;
-  String? _selectedGoal;
 
-  final List<String> _goals = [
-    'onboarding.losing_weight',
-    'onboarding.gaining_weight',
-    'onboarding.keeping_weight',
-    'onboarding.being_fit',
-  ];
+  String _genderLabel(String gender) {
+    switch (gender) {
+      case 'Male':
+        return trSafe(context, 'onboarding.male', vi: 'Nam', en: 'Male');
+      case 'Female':
+        return trSafe(context, 'onboarding.female', vi: 'Nữ', en: 'Female');
+      case 'Other':
+        return trSafe(context, 'onboarding.other', vi: 'Khác', en: 'Other');
+      default:
+        return gender;
+    }
+  }
 
   void _handleNext() async {
     if (_nameController.text.isEmpty ||
         _selectedGender == null ||
         _budgetController.text.isEmpty ||
-        _selectedGoal == null) {
+        _phoneNumberController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('onboarding.fill_all_fields'.tr())),
+        SnackBar(
+          content: Text(
+            trSafe(
+              context,
+              'onboarding.fill_all_fields',
+              vi: 'Vui lòng điền đầy đủ tất cả các trường',
+              en: 'Please fill all fields',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -42,7 +57,7 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
       'name': _nameController.text,
       'gender': _selectedGender,
       'dailyBudget': int.tryParse(_budgetController.text) ?? 0,
-      'goal': _selectedGoal,
+      'phoneNumber': _phoneNumberController.text.trim(),
     });
 
     if (success) {
@@ -56,7 +71,14 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('common.error'.tr()),
+          content: Text(
+            trSafe(
+              context,
+              'common.error',
+              vi: 'Đã xảy ra lỗi',
+              en: 'An error occurred',
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -90,7 +112,12 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'profile.your_info'.tr(),
+                trSafe(
+                  context,
+                  'profile.your_info',
+                  vi: 'Thông tin của bạn',
+                  en: 'Your Info',
+                ),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -99,21 +126,38 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'onboarding.step_1_of_2'.tr(),
+                trSafe(
+                  context,
+                  'onboarding.step_1_of_2',
+                  vi: 'Bước 1/2',
+                  en: 'Step 1 of 2',
+                ),
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 30),
 
               _buildTextField(
                 controller: _nameController,
-                hint: 'onboarding.name'.tr(),
+                hint: trSafe(
+                  context,
+                  'onboarding.name',
+                  vi: 'Họ và tên',
+                  en: 'Full Name',
+                ),
               ),
               const SizedBox(height: 20),
 
               GestureDetector(
                 onTap: () => _showGenderDialog(),
                 child: _buildFakeDropdown(
-                  text: _selectedGender?.tr() ?? 'onboarding.gender'.tr(),
+                  text: _selectedGender == null
+                      ? trSafe(
+                          context,
+                          'onboarding.gender',
+                          vi: 'Giới tính',
+                          en: 'Gender',
+                        )
+                      : _genderLabel(_selectedGender!),
                   isPlaceholder: _selectedGender == null,
                 ),
               ),
@@ -121,17 +165,26 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
 
               _buildTextField(
                 controller: _budgetController,
-                hint: 'onboarding.daily_budget'.tr(),
+                hint: trSafe(
+                  context,
+                  'onboarding.daily_budget',
+                  vi: 'Ngân sách hàng ngày (VND)',
+                  en: 'Daily Budget (VND)',
+                ),
                 isNumber: true,
               ),
               const SizedBox(height: 20),
 
               GestureDetector(
-                onTap: () => _showGoalDialog(),
-                child: _buildFakeDropdown(
-                  text: _selectedGoal?.tr() ?? 'onboarding.goal'.tr(),
-                  isPlaceholder: _selectedGoal == null,
-                  isGoal: true,
+                child: _buildTextField(
+                  controller: _phoneNumberController,
+                  hint: trSafe(
+                    context,
+                    'onboarding.phone_number',
+                    vi: 'Số điện thoại',
+                    en: 'Phone Number',
+                  ),
+                  isPhone: true,
                 ),
               ),
 
@@ -150,7 +203,12 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
                     elevation: 0,
                   ),
                   child: Text(
-                    'onboarding.next'.tr(),
+                    trSafe(
+                      context,
+                      'onboarding.next',
+                      vi: 'Tiếp theo',
+                      en: 'Next',
+                    ),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -170,10 +228,13 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
     required TextEditingController controller,
     required String hint,
     bool isNumber = false,
+    bool isPhone = false,
   }) {
     return TextField(
       controller: controller,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      keyboardType: isPhone
+          ? TextInputType.phone
+          : (isNumber ? TextInputType.number : TextInputType.text),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey[400]),
@@ -221,67 +282,6 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
     );
   }
 
-  void _showGoalDialog() {
-    ModalEffects.showScaleFadeDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'onboarding.goal'.tr(),
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.grey),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: _goals
-                .map(
-                  (goal) => RadioListTile<String>(
-                    title: Text(goal.tr()),
-                    value: goal,
-                    groupValue: _selectedGoal,
-                    activeColor: const Color(0xFF4CAF50),
-                    onChanged: (value) {
-                      setState(() => _selectedGoal = value);
-                      Navigator.pop(context);
-                    },
-                  ),
-                )
-                .toList(),
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'common.ok'.tr(),
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _showGenderDialog() {
     ModalEffects.showScaleFadeDialog(
       context: context,
@@ -290,21 +290,22 @@ class _UserInfoStep1ScreenState extends State<UserInfoStep1Screen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: Text('onboarding.gender'.tr()),
+          title: Text(
+            trSafe(context, 'onboarding.gender', vi: 'Giới tính', en: 'Gender'),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children:
-                ['onboarding.male', 'onboarding.female', 'onboarding.other']
-                    .map(
-                      (g) => ListTile(
-                        title: Text(g.tr()),
-                        onTap: () {
-                          setState(() => _selectedGender = g);
-                          Navigator.pop(context);
-                        },
-                      ),
-                    )
-                    .toList(),
+            children: ['Male', 'Female', 'Other']
+                .map(
+                  (g) => ListTile(
+                    title: Text(_genderLabel(g)),
+                    onTap: () {
+                      setState(() => _selectedGender = g);
+                      Navigator.pop(context);
+                    },
+                  ),
+                )
+                .toList(),
           ),
         );
       },
