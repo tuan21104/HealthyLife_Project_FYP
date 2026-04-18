@@ -6,8 +6,17 @@ import 'signup_screen.dart';
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
+  static const _supportedLanguageCodes = <String>{'vi', 'en'};
+
   @override
   Widget build(BuildContext context) {
+    final currentLocale =
+        EasyLocalization.of(context)?.locale ?? const Locale('vi');
+    final currentLanguageCode =
+        _supportedLanguageCodes.contains(currentLocale.languageCode)
+        ? currentLocale.languageCode
+        : 'vi';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -15,6 +24,72 @@ class LandingScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
           child: Column(
             children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F7F3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: PopupMenuButton<String>(
+                    tooltip: 'Language',
+                    initialValue: currentLanguageCode,
+                    onSelected: (languageCode) async {
+                      if (languageCode == currentLanguageCode) return;
+                      await context.setLocale(Locale(languageCode));
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<String>(
+                        value: 'vi',
+                        child: Text('Tiếng Việt'),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'en',
+                        child: Text('English'),
+                      ),
+                    ],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.public,
+                            size: 18,
+                            color: Colors.black87,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            currentLanguageCode.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(
+                            Icons.arrow_drop_down,
+                            size: 20,
+                            color: Colors.black54,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               const Spacer(),
 
               Image.asset('assets/images/logo_green.png', height: 120),

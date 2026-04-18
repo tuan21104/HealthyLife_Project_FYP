@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/auth_service.dart';
+import 'services/diary_service.dart';
 import 'ask_me_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'shop_screen.dart';
@@ -12,7 +14,9 @@ import 'expense_screen.dart';
 import 'core/theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int refreshSignal;
+
+  const HomeScreen({super.key, this.refreshSignal = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -32,11 +36,24 @@ class _HomeScreenState extends State<HomeScreen> {
   double currentCaloTaken = 0;
   double currentBurned = 0;
   double currentExpense = 0;
+  double currentWaterIntake = 0;
+  double _waterAnimatedFrom = 0;
+  double waterTargetMl = 2000;
+  bool _isWaterSyncing = false;
   String? _userAvatarUrl;
   int? _avatarIndex;
   List<double> weeklyCalo = [0, 0, 0, 0, 0, 0, 0];
   List<double> weeklyBurned = [0, 0, 0, 0, 0, 0, 0];
+  List<double> weeklyWater = [0, 0, 0, 0, 0, 0, 0];
   List<double> weeklyExpense = [0, 0, 0, 0, 0, 0, 0];
+
+  List<double> _safeWeeklyList(dynamic raw) {
+    if (raw is List && raw.isNotEmpty) {
+      final mapped = raw.map((e) => (e is num) ? e.toDouble() : 0.0).toList();
+      if (mapped.length == 7) return mapped;
+    }
+    return List<double>.filled(7, 0);
+  }
 
   @override
   void initState() {
@@ -59,59 +76,100 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshSignal != widget.refreshSignal) {
+      _isFetched = false;
+      _fetchRealData();
+    }
+  }
+
   Future<void> _fetchRealData() async {
     if (_isFetched && !_isLoading) return;
     final prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString('userId');
 
     if (userId != null && userId.isNotEmpty) {
-      print("==== 🔄 REFRESHING DATA FOR: $userId ====");
+      try {
+        print("==== 🔄 REFRESHING DATA FOR: $userId ====");
 
-      // Gọi song song cả Profile và Statistics để tối ưu tốc độ
-      final results = await Future.wait([
-        AuthService.getUserProfile(),
-        AuthService.getHomeStatistics(userId),
-      ]).timeout(const Duration(seconds: 10));
+        // Gọi song song Profile + Statistics + Diary để tránh lệch water state.
+        final results = await Future.wait([
+          AuthService.getUserProfile(),
+          AuthService.getHomeStatistics(userId),
+          DiaryService.loadLatestDiary(
+            userId: userId,
+            date: DateTime.now(),
+            preferCloudForToday: true,
+          ),
+        ]).timeout(const Duration(seconds: 10));
 
-      final userProfile = results[0];
-      final statsData = results[1];
+        final userProfile = results[0] as Map<String, dynamic>?;
+        final statsData = results[1] as Map<String, dynamic>?;
+        final latestDiary = results[2] as Map<String, dynamic>?;
 
-      if (mounted) {
-        setState(() {
-          // 1. Cập nhật tên từ Profile
-          if (userProfile != null && userProfile['user'] != null) {
-            _userName =
-                userProfile['user']['name'] ?? 'home.user_fallback'.tr();
-          }
+        final diaryWater = (latestDiary?['waterIntake'] as num?)?.toDouble();
+        final statsWater = ((statsData?['todayWater'] ?? 0) as num).toDouble();
+        final resolvedWater = (diaryWater != null && diaryWater >= 0)
+            ? diaryWater
+            : statsWater;
 
-          // 2. Cập nhật thông số từ Statistics
-          if (statsData != null) {
-            targetCalo = ((statsData['targetCalo'] ?? 1800) as num)
-                .roundToDouble();
-            currentCaloTaken = ((statsData['todayCalo'] ?? 0) as num)
-                .roundToDouble();
-            currentBurned = ((statsData['todayBurned'] ?? 0) as num)
-                .roundToDouble();
-            currentExpense = ((statsData['todayExpense'] ?? 0) as num)
-                .roundToDouble();
-            _userAvatarUrl = statsData['avatarUrl'];
-            _avatarIndex = statsData['avatarIndex'] != null
-                ? (statsData['avatarIndex'] as num).toInt()
-                : null;
+        if (mounted) {
+          setState(() {
+            // 1. Cập nhật tên từ Profile
+            if (userProfile != null && userProfile['user'] != null) {
+              _userName =
+                  userProfile['user']['name'] ?? 'home.user_fallback'.tr();
 
-            weeklyCalo = (statsData['weeklyCalo'] as List)
-                .map((e) => (e as num).roundToDouble())
-                .toList();
-            weeklyBurned = (statsData['weeklyBurned'] as List)
-                .map((e) => (e as num).roundToDouble())
-                .toList();
-            weeklyExpense = (statsData['weeklyExpense'] as List)
-                .map((e) => (e as num).roundToDouble())
-                .toList();
-          }
-          _isLoading = false;
-          _isFetched = true;
-        });
+              final weight = (userProfile['user']['weight'] as num?)
+                  ?.toDouble();
+              if (weight != null && weight > 0) {
+                waterTargetMl = weight * 35;
+              }
+            }
+
+            // 2. Cập nhật thông số từ Statistics
+            if (statsData != null) {
+              targetCalo = ((statsData['targetCalo'] ?? 1800) as num)
+                  .roundToDouble();
+              currentCaloTaken = ((statsData['todayCalo'] ?? 0) as num)
+                  .roundToDouble();
+              currentBurned = ((statsData['todayBurned'] ?? 0) as num)
+                  .roundToDouble();
+              currentExpense = ((statsData['todayExpense'] ?? 0) as num)
+                  .roundToDouble();
+              waterTargetMl =
+                  ((statsData['waterTargetMl'] ?? waterTargetMl) as num)
+                      .roundToDouble();
+              _userAvatarUrl = statsData['avatarUrl'];
+              _avatarIndex = statsData['avatarIndex'] != null
+                  ? (statsData['avatarIndex'] as num).toInt()
+                  : null;
+
+              weeklyCalo = _safeWeeklyList(statsData['weeklyCalo']);
+              weeklyBurned = _safeWeeklyList(statsData['weeklyBurned']);
+              weeklyWater = _safeWeeklyList(statsData['weeklyWater']);
+              weeklyExpense = _safeWeeklyList(statsData['weeklyExpense']);
+            }
+
+            final nextWater = resolvedWater.roundToDouble();
+            _waterAnimatedFrom = currentWaterIntake;
+            currentWaterIntake = nextWater;
+            if (weeklyWater.isNotEmpty && weeklyWater[6] < nextWater) {
+              weeklyWater[6] = nextWater;
+            }
+
+            _isLoading = false;
+            _isFetched = true;
+          });
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     } else {
       if (mounted) setState(() => _isLoading = false);
@@ -148,6 +206,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildHeader(),
                 const SizedBox(height: 24),
                 _buildSummaryCard(),
+                const SizedBox(height: 16),
+                _buildWaterTrackerCard(),
                 const SizedBox(height: 32),
                 Text(
                   'home.weekly_health'.tr(),
@@ -364,7 +424,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCalorieChart() {
     double maxCalo = weeklyCalo.reduce((a, b) => a > b ? a : b);
     double maxBurned = weeklyBurned.reduce((a, b) => a > b ? a : b);
+    double maxWater = weeklyWater.reduce((a, b) => a > b ? a : b);
     if (maxBurned > maxCalo) maxCalo = maxBurned;
+    if (maxWater > maxCalo) maxCalo = maxWater;
     if (maxCalo < 2500) maxCalo = 2500;
 
     return Container(
@@ -390,25 +452,25 @@ class _HomeScreenState extends State<HomeScreen> {
             touchTooltipData: BarTouchTooltipData(
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 final dayIndex = group.x.toInt();
-                final dayLabel = [
-                  'CN',
-                  'T2',
-                  'T3',
-                  'T4',
-                  'T5',
-                  'T6',
-                  'T7',
-                ][dayIndex];
+                final dayLabel = _weekdayShortLabel(
+                  _chartDateForIndex(dayIndex),
+                );
                 final isTaken = rodIndex == 0;
+                final isBurned = rodIndex == 1;
                 final value = isTaken
                     ? weeklyCalo[dayIndex]
-                    : weeklyBurned[dayIndex];
+                    : isBurned
+                    ? weeklyBurned[dayIndex]
+                    : weeklyWater[dayIndex];
                 final localizedTitle = isTaken
                     ? 'home.intake_short'.tr()
-                    : 'home.burned_short'.tr();
+                    : isBurned
+                    ? 'home.burned_short'.tr()
+                    : 'home.water_short'.tr();
+                final unit = isBurned || isTaken ? 'kcal' : 'ml';
 
                 return BarTooltipItem(
-                  '$dayLabel\n$localizedTitle: ${value.toStringAsFixed(0)} kcal',
+                  '$dayLabel\n$localizedTitle: ${value.toStringAsFixed(0)} $unit',
                   const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -456,18 +518,24 @@ class _HomeScreenState extends State<HomeScreen> {
             7,
             (i) => BarChartGroupData(
               x: i,
-              barsSpace: 6,
+              barsSpace: 4,
               barRods: [
                 BarChartRodData(
                   toY: weeklyCalo[i],
                   color: i == 6 ? _greenColor : _lightGreenColor,
-                  width: 10,
+                  width: 8,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 BarChartRodData(
                   toY: weeklyBurned[i],
                   color: const Color(0xFFFFA726),
-                  width: 10,
+                  width: 8,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                BarChartRodData(
+                  toY: weeklyWater[i],
+                  color: const Color(0xFF4FC3F7),
+                  width: 8,
                   borderRadius: BorderRadius.circular(6),
                 ),
               ],
@@ -475,6 +543,184 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _quickAddWater(double amountMl) async {
+    if (_isWaterSyncing) return;
+
+    HapticFeedback.lightImpact();
+
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    if (userId == null || userId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('auth.relogin_required'.tr())));
+      return;
+    }
+
+    final previousValue = currentWaterIntake;
+    final nextValue = (previousValue + amountMl).clamp(0, 10000).toDouble();
+
+    setState(() {
+      _isWaterSyncing = true;
+      _waterAnimatedFrom = previousValue;
+      currentWaterIntake = nextValue;
+      if (weeklyWater.isNotEmpty) {
+        weeklyWater[6] = nextValue;
+      }
+    });
+
+    final synced = await AuthService.syncWaterIntakeForToday(
+      userId: userId,
+      waterIntake: nextValue,
+    );
+
+    if (!mounted) return;
+
+    if (!synced) {
+      setState(() {
+        _waterAnimatedFrom = currentWaterIntake;
+        currentWaterIntake = previousValue;
+        if (weeklyWater.isNotEmpty) {
+          weeklyWater[6] = previousValue;
+        }
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('common.retry'.tr())));
+    } else {
+      await DiaryService.updateLocalWaterIntake(
+        date: DateTime.now(),
+        waterIntake: nextValue,
+      );
+    }
+
+    setState(() {
+      _isWaterSyncing = false;
+    });
+  }
+
+  Widget _buildWaterTrackerCard() {
+    final target = waterTargetMl <= 0 ? 2000 : waterTargetMl;
+    final rawProgress = target > 0 ? currentWaterIntake / target : 0.0;
+    final progress = rawProgress.clamp(0.0, 1.0);
+    final isOverTarget = rawProgress > 1.0;
+    final progressColor = isOverTarget
+        ? const Color(0xFFFF7043)
+        : const Color(0xFF29B6F6);
+    final progressTextColor = isOverTarget
+        ? const Color(0xFFBF360C)
+        : Colors.grey[600];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.water_drop_rounded, color: Color(0xFF4FC3F7)),
+              const SizedBox(width: 8),
+              Text(
+                'home.water_tracker'.tr(),
+                style: AppTypography.sectionTitle.copyWith(fontSize: 16),
+              ),
+              const Spacer(),
+              if (_isWaterSyncing)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: _waterAnimatedFrom, end: currentWaterIntake),
+            duration: const Duration(milliseconds: 350),
+            builder: (context, animatedValue, child) {
+              return Text(
+                '${animatedValue.toStringAsFixed(0)} / ${target.toStringAsFixed(0)} ml',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: const Color(0xFFE3F2FD),
+              valueColor: AlwaysStoppedAnimation(progressColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${(rawProgress * 100).toStringAsFixed(0)}% ${'home.goal'.tr()}',
+            style: TextStyle(fontSize: 12, color: progressTextColor),
+          ),
+          if (isOverTarget) ...[
+            const SizedBox(height: 4),
+            Text(
+              'home.over_target'.tr(),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFBF360C),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildWaterQuickButton(
+                  label: '+ 250ml',
+                  onTap: () => _quickAddWater(250),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildWaterQuickButton(
+                  label: '+ 500ml',
+                  onTap: () => _quickAddWater(500),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWaterQuickButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return ElevatedButton(
+      onPressed: _isWaterSyncing ? null : onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFE3F2FD),
+        foregroundColor: const Color(0xFF0277BD),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 

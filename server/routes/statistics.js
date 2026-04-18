@@ -47,10 +47,15 @@ router.get('/home/:userId', async (req, res) => {
         // 2. Tìm thông tin Avatar của User
         let userAvatarUrl = '';
         let avatarIndex = null;
+        let waterTargetMl = 2000;
         const user = await User.findById(userId);
         if (user) {
             if (user.avatarUrl) userAvatarUrl = user.avatarUrl;
             if (user.avatarIndex !== undefined) avatarIndex = user.avatarIndex;
+            const weight = Number(user.weight || 0);
+            if (Number.isFinite(weight) && weight > 0) {
+                waterTargetMl = Math.round(weight * 35);
+            }
         }
 
         // 3. Truy vấn Diary
@@ -63,9 +68,11 @@ router.get('/home/:userId', async (req, res) => {
 
         let weeklyCalo = [0, 0, 0, 0, 0, 0, 0];
         let weeklyBurned = [0, 0, 0, 0, 0, 0, 0];
+        let weeklyWater = [0, 0, 0, 0, 0, 0, 0];
         let weeklyExpense = [0, 0, 0, 0, 0, 0, 0];
         let todayCalo = 0;
         let todayBurned = 0;
+        let todayWater = 0;
         let todayExpense = 0;
         let targetCalo = 1800;
 
@@ -86,11 +93,15 @@ router.get('/home/:userId', async (req, res) => {
                     diary.exercise.forEach(ex => burned += (ex.burnedCalories || 0));
                 }
 
+                const water = Number(diary.waterIntake || 0);
+
                 weeklyCalo[index] = calo;
                 weeklyBurned[index] = burned;
+                weeklyWater[index] = Number.isFinite(water) ? water : 0;
                 if (index === 6) {
                     todayCalo = calo;
                     todayBurned = burned;
+                    todayWater = weeklyWater[index] || 0;
                     if (diary.targetCalo) targetCalo = diary.targetCalo;
                 }
             }
@@ -115,8 +126,11 @@ router.get('/home/:userId', async (req, res) => {
                 todayBurned,
                 targetCalo,
                 todayExpense,
+                todayWater,
+                waterTargetMl,
                 weeklyCalo,
                 weeklyBurned,
+                weeklyWater,
                 weeklyExpense,
                 avatarUrl: userAvatarUrl,
                 avatarIndex

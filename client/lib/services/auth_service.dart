@@ -627,6 +627,65 @@ class AuthService {
     }
   }
 
+  static String _todayVnDateKey() {
+    final now = DateTime.now();
+    final localDate = DateTime(now.year, now.month, now.day);
+    final year = localDate.year.toString().padLeft(4, '0');
+    final month = localDate.month.toString().padLeft(2, '0');
+    final day = localDate.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  static Future<bool> syncWaterIntakeForToday({
+    required String userId,
+    required num waterIntake,
+  }) async {
+    try {
+      final date = _todayVnDateKey();
+      final currentDiary = await getDiaryFromCloud(userId, date);
+
+      final safeWater = waterIntake.isFinite && waterIntake >= 0
+          ? waterIntake.toDouble()
+          : 0.0;
+
+      final payload = <String, dynamic>{
+        'userId': userId,
+        'date': date,
+        'targetCalo': currentDiary?['targetCalo'] ?? 1200,
+        'targetCarb': currentDiary?['targetCarb'] ?? 150,
+        'targetProtein': currentDiary?['targetProtein'] ?? 60,
+        'targetFat': currentDiary?['targetFat'] ?? 40,
+        'waterIntake': safeWater,
+        'breakfast': currentDiary?['breakfast'] ?? <dynamic>[],
+        'lunch': currentDiary?['lunch'] ?? <dynamic>[],
+        'snack': currentDiary?['snack'] ?? <dynamic>[],
+        'dinner': currentDiary?['dinner'] ?? <dynamic>[],
+        'exercise': currentDiary?['exercise'] ?? <dynamic>[],
+      };
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/diary/sync'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        _log('Dong bo waterIntake thanh cong');
+        return true;
+      }
+
+      _log(
+        'Dong bo waterIntake that bai: ${response.statusCode} ${response.body}',
+      );
+      return false;
+    } catch (e) {
+      _log('Loi syncWaterIntakeForToday: $e');
+      return false;
+    }
+  }
+
   // Hàm kéo danh sách My Foods
   static Future<List<dynamic>> getMyFoods(String userId) async {
     try {

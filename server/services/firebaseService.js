@@ -114,6 +114,20 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       body: String(body || ''),
     },
     data: normalizeDataPayload(data),
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        channelId: 'high_importance_channel_v2',
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+        },
+      },
+    },
   };
 
   try {

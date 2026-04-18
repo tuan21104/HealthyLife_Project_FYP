@@ -1,10 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'food_search_screen.dart';
 import 'services/auth_service.dart';
+import 'services/diary_service.dart';
 import 'modal_effects.dart';
 import 'animation_presets.dart';
 import 'core/theme/app_theme.dart';
@@ -37,6 +38,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
   double _targetCarb = 150;
   double _targetProtein = 60;
   double _targetFat = 40;
+  double _waterIntake = 0;
+  double _waterAnimatedFrom = 0;
+  double _waterTargetMl = 2000;
+  bool _isWaterSyncing = false;
 
   List<Map<String, dynamic>> _breakfastFoods = [];
   List<Map<String, dynamic>> _lunchFoods = [];
@@ -93,6 +98,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
           _targetCarb = (_targetCalo * 0.5) / 4;
           _targetProtein = (_targetCalo * 0.2) / 4;
           _targetFat = (_targetCalo * 0.3) / 9;
+          final weight = (user?['weight'] as num?)?.toDouble();
+          if (weight != null && weight > 0) {
+            _waterTargetMl = weight * 35;
+          }
         });
       }
     } catch (_) {}
@@ -171,6 +180,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
           (_targetCalo * 0.2) / 4;
       _targetFat =
           (data['targetFat'] as num?)?.toDouble() ?? (_targetCalo * 0.3) / 9;
+      _waterAnimatedFrom = _waterIntake;
+      _waterIntake = (data['waterIntake'] as num?)?.toDouble() ?? 0;
 
       _breakfastFoods = _asMapList(data['breakfast']);
       _lunchFoods = _asMapList(data['lunch']);
@@ -185,48 +196,28 @@ class _DiaryScreenState extends State<DiaryScreen> {
   // --- HÀM 2: TẢI DỮ LIỆU THÔNG MINH (LOCAL + CLOUD) ---
   Future<void> _loadDailyData() async {
     final prefs = await SharedPreferences.getInstance();
-    String formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    String dateKey = 'diary_$formattedDate';
-    String? savedData = prefs.getString(dateKey);
+    String? userId = prefs.getString('userId');
 
-    // BƯỚC 1: KIỂM TRA BỘ NHỚ TRONG MÁY TRƯỚC (Rất nhanh, dùng khi offline)
-    if (savedData != null) {
-      try {
-        Map<String, dynamic> data = jsonDecode(savedData);
-        final migrated = _updateStateWithData(data);
+    // Luôn ưu tiên nguồn cloud cho ngày hôm nay để tránh lệch state với Home.
+    if (userId != null && userId.isNotEmpty) {
+      final latest = await DiaryService.loadLatestDiary(
+        userId: userId,
+        date: _selectedDate,
+        preferCloudForToday: true,
+      );
+
+      if (latest != null) {
+        final migrated = _updateStateWithData(latest);
         if (migrated) {
           await _saveDailyData();
         }
-        return; // Có data trong máy rồi thì dừng luôn
-      } catch (e) {
-        print("Lỗi parse JSON Local: $e");
+        return;
       }
-    }
-
-    // BƯỚC 2: NẾU MÁY TRỐNG (Vừa Log out xong) -> GỌI LÊN MÂY TẢI VỀ
-    String? userId = prefs.getString('userId');
-    if (userId != null && userId.isNotEmpty) {
-      print("==== ☁️ ĐANG LẤY NHẬT KÝ TỪ CLOUD: Ngày $formattedDate ====");
-      try {
-        Map<String, dynamic>? cloudData = await AuthService.getDiaryFromCloud(
-          userId,
-          formattedDate,
-        );
-
-        if (cloudData != null) {
-          print("==== ✅ ĐÃ TẢI THÀNH CÔNG TỪ CLOUD VỀ MÁY ====");
-          final migrated = _updateStateWithData(cloudData);
-
-          // Tiện tay lưu luôn vào điện thoại để lần sau mở App không cần đợi tải mạng
-          if (migrated) {
-            await _saveDailyData();
-          } else {
-            await prefs.setString(dateKey, jsonEncode(cloudData));
-          }
-          return;
-        }
-      } catch (e) {
-        print("Lỗi parse/sync dữ liệu cloud: $e");
+    } else {
+      final localOnly = await DiaryService.loadLocalDiary(_selectedDate);
+      if (localOnly != null) {
+        _updateStateWithData(localOnly);
+        return;
       }
     }
 
@@ -238,6 +229,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
       _targetCarb = (_targetCalo * 0.5) / 4;
       _targetProtein = (_targetCalo * 0.2) / 4;
       _targetFat = (_targetCalo * 0.3) / 9;
+      _waterIntake = 0;
 
       _breakfastFoods = [];
       _lunchFoods = [];
@@ -247,39 +239,38 @@ class _DiaryScreenState extends State<DiaryScreen> {
     });
   }
 
-  Future<void> _saveDailyData() async {
-    final prefs = await SharedPreferences.getInstance();
-    String formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    String dateKey = 'diary_$formattedDate';
-
-    // Đóng gói dữ liệu để lưu
-    Map<String, dynamic> dataToSave = {
+  Map<String, dynamic> _buildDiarySnapshot({double? waterOverride}) {
+    return {
       'targetCalo': _targetCalo,
       'targetCarb': _targetCarb,
       'targetProtein': _targetProtein,
       'targetFat': _targetFat,
+      'waterIntake': waterOverride ?? _waterIntake,
       'breakfast': _breakfastFoods,
       'lunch': _lunchFoods,
       'snack': _snackFoods,
       'dinner': _dinnerFoods,
-      'exercise': _exerciseList, // Lưu bài tập
+      'exercise': _exerciseList,
     };
+  }
 
-    // 1. LƯU LOCAL
-    await prefs.setString(dateKey, jsonEncode(dataToSave));
+  Future<bool> _saveDailyData({bool syncToCloud = true}) async {
+    final snapshot = _buildDiarySnapshot();
+    await DiaryService.saveLocalDiary(_selectedDate, snapshot);
 
-    // 2. ĐỒNG BỘ LÊN CLOUD
-    String? realUserId = prefs.getString('userId');
+    if (!syncToCloud) return true;
 
-    if (realUserId != null && realUserId.isNotEmpty) {
-      Map<String, dynamic> cloudData = {
-        'userId': realUserId,
-        'date': formattedDate,
-        ...dataToSave,
-      };
-
-      AuthService.syncDiaryToCloud(cloudData);
+    final prefs = await SharedPreferences.getInstance();
+    final realUserId = prefs.getString('userId');
+    if (realUserId == null || realUserId.isEmpty) {
+      return false;
     }
+
+    return DiaryService.syncDiaryPayload(
+      userId: realUserId,
+      date: _selectedDate,
+      payload: snapshot,
+    );
   }
 
   String _mealLabel(String key) {
@@ -666,6 +657,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
               children: [
                 _buildCalorieTracker(totals['taken']!, totals['burnt']!),
                 const SizedBox(height: 24),
+                _buildWaterTrackerCard(),
+                const SizedBox(height: 20),
                 _buildMacrosTracker(
                   totals['carb']!,
                   totals['protein']!,
@@ -907,6 +900,197 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 (val) => setState(() => _targetFat = val),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _quickAddWater(double amountMl) async {
+    if (_isWaterSyncing) return;
+
+    HapticFeedback.lightImpact();
+
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    if (userId == null || userId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('auth.relogin_required'.tr())));
+      return;
+    }
+
+    final previousValue = _waterIntake;
+    final nextValue = (previousValue + amountMl).clamp(0, 10000).toDouble();
+
+    setState(() {
+      _isWaterSyncing = true;
+      _waterAnimatedFrom = previousValue;
+      _waterIntake = nextValue;
+    });
+
+    try {
+      final payload = _buildDiarySnapshot(waterOverride: nextValue);
+      final synced = await DiaryService.syncDiaryPayload(
+        userId: userId,
+        date: _selectedDate,
+        payload: payload,
+      );
+
+      if (!mounted) return;
+
+      if (!synced) {
+        setState(() {
+          _waterAnimatedFrom = _waterIntake;
+          _waterIntake = previousValue;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('common.retry'.tr())));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _waterAnimatedFrom = _waterIntake;
+        _waterIntake = previousValue;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('common.retry'.tr())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isWaterSyncing = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildWaterTrackerCard() {
+    final target = _waterTargetMl <= 0 ? 2000 : _waterTargetMl;
+    final rawProgress = target > 0 ? _waterIntake / target : 0.0;
+    final progress = rawProgress.clamp(0.0, 1.0);
+    final isOverTarget = rawProgress > 1.0;
+    final progressColor = isOverTarget
+        ? const Color(0xFFFF7043)
+        : const Color(0xFF29B6F6);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.water_drop_rounded, color: Color(0xFF4FC3F7)),
+              const SizedBox(width: 8),
+              Text(
+                'home.water_tracker'.tr(),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              if (_isWaterSyncing)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: _waterAnimatedFrom, end: _waterIntake),
+            duration: const Duration(milliseconds: 350),
+            builder: (context, animatedValue, _) {
+              return Text(
+                '${animatedValue.toStringAsFixed(0)} / ${target.toStringAsFixed(0)} ml',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: const Color(0xFFE3F2FD),
+              valueColor: AlwaysStoppedAnimation(progressColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${(rawProgress * 100).toStringAsFixed(0)}% ${'home.goal'.tr()}',
+            style: TextStyle(
+              fontSize: 12,
+              color: isOverTarget ? const Color(0xFFBF360C) : Colors.grey[600],
+            ),
+          ),
+          if (isOverTarget) ...[
+            const SizedBox(height: 4),
+            Text(
+              'home.over_target'.tr(),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFBF360C),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isWaterSyncing ? null : () => _quickAddWater(250),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE3F2FD),
+                    foregroundColor: const Color(0xFF0277BD),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    '+ 250ml',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isWaterSyncing ? null : () => _quickAddWater(500),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE3F2FD),
+                    foregroundColor: const Color(0xFF0277BD),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    '+ 500ml',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
