@@ -18,6 +18,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isObscure = true;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
   late final TextEditingController _emailController;
   final TextEditingController _passwordController = TextEditingController();
@@ -62,44 +63,83 @@ class _LoginScreenState extends State<LoginScreen> {
         Colors.green,
       );
 
-      // Bắt cờ hasProfile từ Backend gửi về
-      bool hasProfile = result['hasProfile'] ?? false;
-      bool forceOnboarding = await AuthService.shouldForceOnboarding(email);
-
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (!mounted) return;
-
-        if (forceOnboarding) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WelcomeScreen(email: email),
-            ),
-          );
-        } else if (hasProfile) {
-          // --- NHÁNH 1: TÀI KHOẢN CŨ (Đã có thông tin chiều cao/cân nặng) ---
-          _showMessage(
-            "${'common.success'.tr()} - ${'auth.login'.tr()}",
-            Colors.blue,
-          );
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainScreen()),
-          );
-        } else {
-          // --- NHÁNH 2: TÀI KHOẢN MỚI (Chưa có thông tin) ---
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WelcomeScreen(email: email),
-            ),
-          );
-        }
-      });
+      await _handlePostLogin(
+        email: email,
+        hasProfile: result['hasProfile'] == true,
+      );
     } else {
       _showMessage(result['message'], Colors.red);
     }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    if (_isLoading || _isGoogleLoading) return;
+
+    setState(() => _isGoogleLoading = true);
+    final result = await AuthService.loginWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _isGoogleLoading = false);
+
+    if (result['success'] == true) {
+      _showMessage(
+        "${'auth.google_login'.tr()} ${'common.success'.tr().toLowerCase()}!",
+        Colors.green,
+      );
+
+      await _handlePostLogin(
+        email: result['email']?.toString() ?? '',
+        hasProfile: result['hasProfile'] == true,
+      );
+      return;
+    }
+
+    _showMessage(
+      result['message']?.toString() ?? 'common.error'.tr(),
+      Colors.red,
+    );
+  }
+
+  Future<void> _handlePostLogin({
+    required String email,
+    required bool hasProfile,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final forceOnboarding = normalizedEmail.isNotEmpty
+        ? await AuthService.shouldForceOnboarding(normalizedEmail)
+        : false;
+
+    if (!mounted) return;
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+
+      if (forceOnboarding) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WelcomeScreen(email: normalizedEmail),
+          ),
+        );
+      } else if (hasProfile) {
+        _showMessage(
+          "${'common.success'.tr()} - ${'auth.login'.tr()}",
+          Colors.blue,
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WelcomeScreen(email: normalizedEmail),
+          ),
+        );
+      }
+    });
   }
 
   void _showMessage(String message, Color color) {
@@ -195,7 +235,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
+                  onPressed: (_isLoading || _isGoogleLoading)
+                      ? null
+                      : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     shape: RoundedRectangleBorder(
@@ -220,6 +262,39 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.white,
                           ),
                         ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: (_isLoading || _isGoogleLoading)
+                      ? null
+                      : _handleGoogleLogin,
+                  icon: _isGoogleLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.g_mobiledata, size: 24),
+                  label: Text(
+                    'auth.google_login'.tr(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
 

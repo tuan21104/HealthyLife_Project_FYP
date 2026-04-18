@@ -18,7 +18,12 @@ const UserSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: true
+        default: ''
+    },
+    provider: {
+        type: String,
+        enum: ['local', 'google'],
+        default: 'local'
     },
     isVerified: {
         type: Boolean,
@@ -120,7 +125,7 @@ const UserSchema = new mongoose.Schema({
 
 // --- MIDDEWARE: Tự động mã hóa mật khẩu trước khi lưu ---
 UserSchema.pre('save', async function() { 
-    if (!this.isModified('password')) {
+    if (!this.isModified('password') || !this.password) {
         return; 
     }
     

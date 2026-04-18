@@ -2,8 +2,13 @@ const router = require('express').Router();
 const User = require('../models/User'); 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const admin = require('firebase-admin');
 const { sendMail } = require('../services/mailer');
+const { initializeFirebaseAdmin } = require('../services/firebaseService');
 const JWT_SECRET = process.env.JWT_SECRET || 'SECRET_KEY_CUA_BAN';
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+initializeFirebaseAdmin();
 
 function generateOtpCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
@@ -24,6 +29,23 @@ function buildOtpMail({ name, otpCode, purpose }) {
     };
 }
 
+function buildAuthResponse(user) {
+    const token = jwt.sign({ _id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    const hasProfile = !!user.height && user.height !== 0 && user.height !== '0';
+
+    return {
+        token,
+        hasProfile,
+        user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            bmi: user.bmi,
+            provider: user.provider || 'local',
+        },
+    };
+}
+
 // --- API 1: ĐĂNG KÝ (REGISTER) ---
 // Endpoint: POST http://localhost:3000/api/auth/register
 router.post('/register', async (req, res) => {
@@ -31,9 +53,21 @@ router.post('/register', async (req, res) => {
         // 1. Nhận dữ liệu từ form Sign Up (Figma)
         const { email, password, name } = req.body;
 
+        if (!STRONG_PASSWORD_REGEX.test(String(password || ''))) {
+            return res.status(400).json({
+                message: 'Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.',
+            });
+        }
+
         // 2. Kiểm tra xem email này đã đăng ký chưa
         const userExists = await User.findOne({ email });
         if (userExists) {
+            if (userExists.provider === 'google') {
+                return res.status(400).json({
+                    message: 'Email này đã liên kết Google. Vui lòng đăng nhập bằng Google.',
+                });
+            }
+
             if (userExists.isVerified) {
                 return res.status(400).json({ message: 'Email này đã được sử dụng!' });
             }
@@ -71,6 +105,7 @@ router.post('/register', async (req, res) => {
             name: name || "New User", 
             email,
             password,
+            provider: 'local',
             otpCode,
             otpExpires,
             isVerified: false,
@@ -119,31 +154,83 @@ router.post('/login', async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ message: 'Email hoặc mật khẩu sai!' });
 
+        if (user.provider === 'google') {
+            return res.status(400).json({ message: 'Tài khoản này dùng Google Sign-In. Vui lòng đăng nhập bằng Google.' });
+        }
+
+        if (!user.password) {
+            return res.status(400).json({ message: 'Tài khoản chưa có mật khẩu hợp lệ.' });
+        }
+
         // 2. So sánh mật khẩu (User nhập vs Database)
         const validPass = await bcrypt.compare(password, user.password);
         if (!validPass) return res.status(400).json({ message: 'Email hoặc mật khẩu sai!' });
 
-        // 3. Tạo "thẻ bài" (Token) để user cầm đi lại trong app
-        const token = jwt.sign({ _id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-
-        // 4. KIỂM TRA XEM ĐÃ NHẬP PROFILE CHƯA
-        // Nếu user có lưu chiều cao (height) thì coi như đã làm xong Onboarding
-        const hasProfile = !!user.height && user.height !== 0 && user.height !== "0";
+        const authPayload = buildAuthResponse(user);
 
         res.status(200).json({
-            message: "Đăng nhập thành công", // Thêm dòng này để Frontend dễ bắt thông báo
-            token,
-            hasProfile: hasProfile, // Gửi cờ báo hiệu về cho App Flutter
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                bmi: user.bmi
-            }
+            message: 'Đăng nhập thành công',
+            ...authPayload,
         });
 
     } catch (error) {
         res.status(500).json({ message: 'Lỗi Server: ' + error.message });
+    }
+});
+
+// --- API 2.1: ĐĂNG NHẬP BẰNG GOOGLE ---
+// Endpoint: POST http://localhost:3000/api/auth/google
+router.post('/google', async (req, res) => {
+    try {
+        const { idToken } = req.body;
+
+        if (!idToken) {
+            return res.status(400).json({ message: 'Thiếu idToken từ Google Sign-In.' });
+        }
+
+        if (admin.apps.length === 0) {
+            initializeFirebaseAdmin();
+        }
+
+        if (admin.apps.length === 0) {
+            return res.status(500).json({
+                message: 'Firebase Admin chưa được cấu hình đúng trên server.',
+            });
+        }
+
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const email = String(decodedToken.email || '').trim().toLowerCase();
+
+        if (!email) {
+            return res.status(400).json({ message: 'Token Google không chứa email hợp lệ.' });
+        }
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            const fallbackName = email.split('@')[0] || 'Google User';
+            user = await User.create({
+                name: decodedToken.name || fallbackName,
+                email,
+                provider: 'google',
+                isVerified: true,
+                password: '',
+            });
+        } else {
+            if (!user.isVerified) {
+                user.isVerified = true;
+                await user.save();
+            }
+        }
+
+        const authPayload = buildAuthResponse(user);
+
+        return res.status(200).json({
+            message: 'Đăng nhập Google thành công',
+            ...authPayload,
+        });
+    } catch (error) {
+        return res.status(401).json({ message: `Google token không hợp lệ: ${error.message}` });
     }
 });
 

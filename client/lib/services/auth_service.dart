@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'user_preferences_service.dart';
@@ -13,6 +15,8 @@ class AuthService {
 
   // SỬA LỖI 1: Đổi thành false để máy ảo Android dùng IP 10.0.2.2 cho ổn định
   static const bool isOnlineMode = false;
+
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
 
   // SỬA LỖI 2: Cắt bỏ chữ 'auth' ở đuôi, chỉ giữ lại '/api' làm thư mục gốc
   static const String baseUrl = isOnlineMode
@@ -278,6 +282,98 @@ class AuthService {
           'message': jsonDecode(response.body)['message'] ?? 'Lỗi đăng nhập',
         };
       }
+    } catch (e) {
+      return {'success': false, 'message': 'Không thể kết nối tới Server'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginWithGoogle() async {
+    try {
+      await _googleSignIn.signOut();
+
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return {'success': false, 'message': 'Bạn đã hủy đăng nhập Google'};
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final googleIdToken = googleAuth.idToken;
+      final googleAccessToken = googleAuth.accessToken;
+
+      if (googleIdToken == null || googleIdToken.isEmpty) {
+        return {
+          'success': false,
+          'message':
+              'Không lấy được Google ID token. Vui lòng kiểm tra cấu hình Firebase/Google Sign-In.',
+        };
+      }
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleIdToken,
+        accessToken: googleAccessToken,
+      );
+
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+      final firebaseIdToken = await userCredential.user?.getIdToken();
+
+      if (firebaseIdToken == null || firebaseIdToken.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Không thể lấy Firebase ID token từ tài khoản Google.',
+        };
+      }
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/google'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'idToken': firebaseIdToken}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['token'] != null) {
+        final parsedData = Map<String, dynamic>.from(data);
+        final prefs = await SharedPreferences.getInstance();
+        final userId = _extractUserIdFromResponse(parsedData);
+        final userName = _extractUserNameFromResponse(parsedData);
+        final userEmail = _extractUserEmailFromResponse(
+          parsedData,
+          googleUser.email,
+        );
+
+        await prefs.setString('jwt_token', parsedData['token'].toString());
+        await prefs.setString('token', parsedData['token'].toString());
+
+        if (userId.isNotEmpty) {
+          await prefs.setString('userId', userId);
+          await prefs.setString('user_id', userId);
+          await UserPreferencesService.saveUserInfo(
+            userId: userId,
+            userName: userName,
+            userEmail: userEmail,
+            authToken: parsedData['token'].toString(),
+          );
+
+          unawaited(_syncStoredFcmTokenToBackend(userId));
+        }
+
+        return {
+          'success': true,
+          'message':
+              parsedData['message']?.toString() ?? 'Đăng nhập thành công',
+          'hasProfile': parsedData['hasProfile'] ?? false,
+          'email': userEmail,
+        };
+      }
+
+      return {
+        'success': false,
+        'message': data['message']?.toString() ?? 'Google login failed',
+      };
     } catch (e) {
       return {'success': false, 'message': 'Không thể kết nối tới Server'};
     }

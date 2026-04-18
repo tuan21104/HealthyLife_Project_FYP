@@ -21,7 +21,13 @@ class DiaryService {
         date.day == now.day;
   }
 
-  static String _localDiaryKey(DateTime date) => 'diary_${formatDate(date)}';
+  static String _userScopedLocalDiaryKey({
+    required String userId,
+    required DateTime date,
+  }) {
+    final normalizedUserId = userId.trim().toLowerCase();
+    return 'diary_${normalizedUserId}_${formatDate(date)}';
+  }
 
   static List<dynamic> _asList(dynamic value) {
     return value is List ? value : <dynamic>[];
@@ -44,10 +50,15 @@ class DiaryService {
     };
   }
 
-  static Future<Map<String, dynamic>?> loadLocalDiary(DateTime date) async {
+  static Future<Map<String, dynamic>?> loadLocalDiary({
+    required String userId,
+    required DateTime date,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_localDiaryKey(date));
+      final raw = prefs.getString(
+        _userScopedLocalDiaryKey(userId: userId, date: date),
+      );
       if (raw == null || raw.isEmpty) return null;
       final decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) {
@@ -57,27 +68,30 @@ class DiaryService {
     return null;
   }
 
-  static Future<void> saveLocalDiary(
-    DateTime date,
-    Map<String, dynamic> diaryData,
-  ) async {
+  static Future<void> saveLocalDiary({
+    required String userId,
+    required DateTime date,
+    required Map<String, dynamic> diaryData,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      _localDiaryKey(date),
+      _userScopedLocalDiaryKey(userId: userId, date: date),
       jsonEncode(normalizeDiaryPayload(diaryData)),
     );
   }
 
   static Future<void> updateLocalWaterIntake({
+    required String userId,
     required DateTime date,
     required double waterIntake,
   }) async {
-    final existing = await loadLocalDiary(date) ?? <String, dynamic>{};
+    final existing =
+        await loadLocalDiary(userId: userId, date: date) ?? <String, dynamic>{};
     final merged = normalizeDiaryPayload(existing)
       ..['waterIntake'] = waterIntake.isFinite && waterIntake >= 0
           ? waterIntake
           : 0.0;
-    await saveLocalDiary(date, merged);
+    await saveLocalDiary(userId: userId, date: date, diaryData: merged);
   }
 
   static Future<Map<String, dynamic>?> loadLatestDiary({
@@ -85,7 +99,7 @@ class DiaryService {
     required DateTime date,
     bool preferCloudForToday = true,
   }) async {
-    final localData = await loadLocalDiary(date);
+    final localData = await loadLocalDiary(userId: userId, date: date);
     final formattedDate = formatDate(date);
     final shouldHitCloudFirst = preferCloudForToday && isToday(date);
 
@@ -95,7 +109,7 @@ class DiaryService {
         formattedDate,
       );
       if (cloudData != null) {
-        await saveLocalDiary(date, cloudData);
+        await saveLocalDiary(userId: userId, date: date, diaryData: cloudData);
         return cloudData;
       }
       return localData;
@@ -108,7 +122,7 @@ class DiaryService {
       formattedDate,
     );
     if (cloudData != null) {
-      await saveLocalDiary(date, cloudData);
+      await saveLocalDiary(userId: userId, date: date, diaryData: cloudData);
     }
     return cloudData;
   }
@@ -135,7 +149,7 @@ class DiaryService {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        await saveLocalDiary(date, normalized);
+        await saveLocalDiary(userId: userId, date: date, diaryData: normalized);
         return true;
       }
     } catch (_) {}

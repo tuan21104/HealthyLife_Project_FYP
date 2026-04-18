@@ -44,7 +44,11 @@
     "resend_otp": "Gửi lại OTP",
     "invalid_credentials": "Email hoặc mật khẩu không hợp lệ",
     "account_created": "Tài khoản được tạo thành công",
-    "relogin_required": "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại"
+    "relogin_required": "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
+    "google_login": "Đăng nhập bằng Google",
+    "google_signin_cancelled": "Bạn đã hủy đăng nhập Google",
+    "google_id_token_missing": "Không lấy được Google ID token. Vui lòng kiểm tra cấu hình Firebase/Google Sign-In.",
+    "password_requirements": "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt."
   },
   "onboarding": {
     "welcome": "Chào mừng đến Healthy Life",

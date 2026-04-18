@@ -12,12 +12,42 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  static final RegExp _strongPasswordRegex = RegExp(
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$',
+  );
+
   bool _isObscure = true;
   bool _isLoading = false;
+  bool _showPasswordRuleWarning = false;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPassController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_onPasswordChanged);
+  }
+
+  @override
+  void dispose() {
+    _passwordController.removeListener(_onPasswordChanged);
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPassController.dispose();
+    super.dispose();
+  }
+
+  void _onPasswordChanged() {
+    final password = _passwordController.text;
+    final shouldShowWarning =
+        password.isNotEmpty && !_strongPasswordRegex.hasMatch(password);
+
+    if (shouldShowWarning != _showPasswordRuleWarning) {
+      setState(() => _showPasswordRuleWarning = shouldShowWarning);
+    }
+  }
 
   void _handleSignUp() async {
     String email = _emailController.text.trim();
@@ -31,6 +61,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     if (password != confirmPass) {
       _showMessage('common.error'.tr(), Colors.red);
+      return;
+    }
+
+    if (!_strongPasswordRegex.hasMatch(password)) {
+      _showMessage('auth.password_requirements'.tr(), Colors.red);
       return;
     }
 
@@ -119,6 +154,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 isPassword: true,
                 controller: _passwordController,
               ),
+              if (_showPasswordRuleWarning)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'auth.password_requirements'.tr(),
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
               _buildTextField(
                 'auth.confirm_password'.tr(),

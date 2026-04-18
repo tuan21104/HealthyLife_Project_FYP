@@ -593,6 +593,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ).showSnackBar(SnackBar(content: Text('common.retry'.tr())));
     } else {
       await DiaryService.updateLocalWaterIntake(
+        userId: userId,
         date: DateTime.now(),
         waterIntake: nextValue,
       );

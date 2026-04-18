@@ -213,12 +213,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
         }
         return;
       }
-    } else {
-      final localOnly = await DiaryService.loadLocalDiary(_selectedDate);
-      if (localOnly != null) {
-        _updateStateWithData(localOnly);
-        return;
-      }
     }
 
     // BƯỚC 3: NẾU MÂY CŨNG TRỐNG NỐT -> TẠO NGÀY MỚI TRẮNG TINH
@@ -256,15 +250,19 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
   Future<bool> _saveDailyData({bool syncToCloud = true}) async {
     final snapshot = _buildDiarySnapshot();
-    await DiaryService.saveLocalDiary(_selectedDate, snapshot);
-
-    if (!syncToCloud) return true;
-
     final prefs = await SharedPreferences.getInstance();
     final realUserId = prefs.getString('userId');
     if (realUserId == null || realUserId.isEmpty) {
       return false;
     }
+
+    await DiaryService.saveLocalDiary(
+      userId: realUserId,
+      date: _selectedDate,
+      diaryData: snapshot,
+    );
+
+    if (!syncToCloud) return true;
 
     return DiaryService.syncDiaryPayload(
       userId: realUserId,
