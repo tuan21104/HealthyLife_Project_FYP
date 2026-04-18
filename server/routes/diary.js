@@ -16,14 +16,41 @@ router.get('/:userId/:date', async (req, res) => {
 // 2. API ĐỒNG BỘ DỮ LIỆU LÊN CLOUD (Sẽ gọi ngầm mỗi khi người dùng thêm/sửa món)
 router.post('/sync', async (req, res) => {
   try {
-    // ĐÃ BỔ SUNG 'exercise' VÀO ĐÂY ĐỂ HỨNG DATA TỪ APP
-    const { userId, date, targetCalo, targetCarb, targetProtein, targetFat, breakfast, lunch, snack, dinner, exercise } = req.body;
-    
+    const {
+      userId,
+      date,
+      targetCalo,
+      targetCarb,
+      targetProtein,
+      targetFat,
+      waterIntake,
+      breakfast,
+      lunch,
+      snack,
+      dinner,
+      exercise,
+    } = req.body;
+
+    const parsedWaterIntake = Number(waterIntake);
+    const normalizedWaterIntake = Number.isFinite(parsedWaterIntake) && parsedWaterIntake >= 0
+      ? parsedWaterIntake
+      : 0;
+
     // Upsert: Cập nhật bản ghi cũ hoặc tạo mới nếu đây là ngày mới
     const diary = await Diary.findOneAndUpdate(
       { userId, date },
-      // ĐÃ BỔ SUNG 'exercise' VÀO ĐÂY ĐỂ LƯU XUỐNG MONGODB
-      { targetCalo, targetCarb, targetProtein, targetFat, breakfast, lunch, snack, dinner, exercise },
+      {
+        targetCalo,
+        targetCarb,
+        targetProtein,
+        targetFat,
+        waterIntake: normalizedWaterIntake,
+        breakfast,
+        lunch,
+        snack,
+        dinner,
+        exercise,
+      },
       { new: true, upsert: true }
     );
 

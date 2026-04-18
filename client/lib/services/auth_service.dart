@@ -4,9 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'user_preferences_service.dart';
 
 class AuthService {
-  static const String myWifiIp = '192.168.1.27';
+  static const String myWifiIp = '172.20.10.11';
   static const bool enableLogs = false;
   static const String _pendingOnboardingEmailKey = 'pending_onboarding_email';
 
@@ -105,6 +106,91 @@ class AuthService {
     return null;
   }
 
+  static String _extractUserIdFromResponse(Map<String, dynamic> data) {
+    final user = data['user'];
+    if (user is Map) {
+      final userMap = Map<String, dynamic>.from(user);
+      final candidate = userMap['id']?.toString() ?? userMap['_id']?.toString();
+      if (candidate != null && candidate.isNotEmpty) {
+        return candidate;
+      }
+    }
+
+    final directUserId = data['userId']?.toString();
+    if (directUserId != null && directUserId.isNotEmpty) {
+      return directUserId;
+    }
+
+    final directId = data['id']?.toString() ?? data['_id']?.toString();
+    if (directId != null && directId.isNotEmpty) {
+      return directId;
+    }
+
+    return '';
+  }
+
+  static String _extractUserNameFromResponse(Map<String, dynamic> data) {
+    final user = data['user'];
+    if (user is Map) {
+      final userMap = Map<String, dynamic>.from(user);
+      final candidate =
+          userMap['name']?.toString() ?? userMap['username']?.toString();
+      if (candidate != null && candidate.isNotEmpty) {
+        return candidate;
+      }
+    }
+    return data['name']?.toString() ?? data['username']?.toString() ?? '';
+  }
+
+  static String _extractUserEmailFromResponse(
+    Map<String, dynamic> data,
+    String fallbackEmail,
+  ) {
+    final user = data['user'];
+    if (user is Map) {
+      final userMap = Map<String, dynamic>.from(user);
+      final candidate = userMap['email']?.toString();
+      if (candidate != null && candidate.isNotEmpty) {
+        return candidate;
+      }
+    }
+    final directEmail = data['email']?.toString();
+    if (directEmail != null && directEmail.isNotEmpty) {
+      return directEmail;
+    }
+    return fallbackEmail;
+  }
+
+  static Future<void> _syncStoredFcmTokenToBackend(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fcmToken = prefs.getString('fcm_token')?.trim();
+
+      if (fcmToken == null || fcmToken.isEmpty) {
+        _log('FCM token chua co san, bo qua dong bo voi backend');
+        return;
+      }
+
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/api/users/fcm-token'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'userId': userId, 'fcmToken': fcmToken}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        _log('Da cap nhat fcmToken len backend thanh cong');
+      } else {
+        _log(
+          'Cap nhat fcmToken that bai: ${response.statusCode} - ${response.body}',
+        );
+      }
+    } catch (e) {
+      _log('Khong the dong bo fcmToken sau khi login: $e');
+    }
+  }
+
   // --- HÀM 1: ĐĂNG KÝ ---
   static Future<Map<String, dynamic>> register(
     String email,
@@ -151,25 +237,33 @@ class AuthService {
 
         if (data['token'] != null) {
           final prefs = await SharedPreferences.getInstance();
+          final userId = _extractUserIdFromResponse(
+            Map<String, dynamic>.from(data),
+          );
+          final userName = _extractUserNameFromResponse(
+            Map<String, dynamic>.from(data),
+          );
+          final userEmail = _extractUserEmailFromResponse(
+            Map<String, dynamic>.from(data),
+            email,
+          );
 
           // 1. Lưu Token
           await prefs.setString('jwt_token', data['token']);
-
-          // 2. LƯU USER ID (ĐÃ SỬA CHUẨN XÁC 100%)
-          String userId = "";
-
-          if (data['user'] != null) {
-            // Chỉ cần data['user'] tồn tại, ta sẽ vét cạn tìm 'id' hoặc '_id'
-            userId =
-                data['user']['id']?.toString() ??
-                data['user']['_id']?.toString() ??
-                "";
-          } else if (data['userId'] != null) {
-            userId = data['userId']?.toString() ?? "";
-          }
+          await prefs.setString('token', data['token']);
 
           if (userId.isNotEmpty) {
             await prefs.setString('userId', userId);
+            await prefs.setString('user_id', userId);
+            await UserPreferencesService.saveUserInfo(
+              userId: userId,
+              userName: userName,
+              userEmail: userEmail,
+              authToken: data['token'].toString(),
+            );
+
+            // Cố gắng đồng bộ token FCM, nhưng không được chặn đăng nhập nếu lỗi
+            unawaited(_syncStoredFcmTokenToBackend(userId));
           }
         }
 
@@ -326,7 +420,7 @@ class AuthService {
     await prefs.remove(_pendingOnboardingEmailKey);
   }
 
-  // --- HÀM 3: CẬP NHẬT THÔNG TIN (BẢN FIX TRIỆT ĐỂ LỖI OBJECTID) ---// Trong file lib/services/auth_service.dart
+  // --- HÀM 3: CẬP NHẬT THÔNG TIN
   static Future<bool> updateProfile(Map<String, dynamic> profileData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -736,7 +830,8 @@ class AuthService {
 
   // --- HÀM REDEEM MỚI: Nhận đầy đủ Bill và Địa chỉ ---
   static Future<Map<String, dynamic>?> redeemProduct({
-    required String productId,
+    String productId = '',
+    List<Map<String, dynamic>> items = const [],
     String billUrl = '',
     required String address,
     double lat = 0.0,
@@ -744,6 +839,7 @@ class AuthService {
     required int shippingFee,
     required double distanceKm,
     int quantity = 1,
+    String phoneNumber = '',
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -763,6 +859,7 @@ class AuthService {
         body: jsonEncode({
           'userId': userId,
           'productId': productId,
+          'items': items,
           'quantity': quantity,
           'billUrl': billUrl,
           'address': address,
@@ -770,6 +867,7 @@ class AuthService {
           'lng': lng,
           'shippingFee': shippingFee,
           'distanceKm': distanceKm,
+          'phoneNumber': phoneNumber,
         }),
       );
       return jsonDecode(response.body);

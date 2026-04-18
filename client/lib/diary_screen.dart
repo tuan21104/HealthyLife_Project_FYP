@@ -7,11 +7,17 @@ import 'food_search_screen.dart';
 import 'services/auth_service.dart';
 import 'modal_effects.dart';
 import 'animation_presets.dart';
+import 'core/theme/app_theme.dart';
 
 class DiaryScreen extends StatefulWidget {
   final double initialCalo;
+  final int refreshSignal;
 
-  const DiaryScreen({super.key, this.initialCalo = 1200});
+  const DiaryScreen({
+    super.key,
+    this.initialCalo = 1200,
+    this.refreshSignal = 0,
+  });
 
   @override
   State<DiaryScreen> createState() => _DiaryScreenState();
@@ -49,6 +55,19 @@ class _DiaryScreenState extends State<DiaryScreen> {
     _bootstrapDiaryData();
   }
 
+  @override
+  void didUpdateWidget(covariant DiaryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshSignal != widget.refreshSignal) {
+      _syncTargetFromProfile();
+    }
+  }
+
+  Future<void> _syncTargetFromProfile() async {
+    await _loadPersonalizedTargetCalo();
+    await _loadDailyData();
+  }
+
   Future<void> _bootstrapDiaryData() async {
     await _loadPersonalizedTargetCalo();
     await _loadDailyData();
@@ -65,11 +84,9 @@ class _DiaryScreenState extends State<DiaryScreen> {
           ? (profile['user'] ?? profile['data'])
           : null;
 
-      final profileTarget = user is Map
-          ? (user['targetCalo'] as num?)?.toDouble()
-          : null;
+      final profileTarget = _resolveProfileDailyTarget(user);
 
-      if (profileTarget != null && profileTarget > 0 && mounted) {
+      if (profileTarget > 0 && mounted) {
         setState(() {
           _defaultTargetCalo = profileTarget;
           _targetCalo = profileTarget;
@@ -79,6 +96,37 @@ class _DiaryScreenState extends State<DiaryScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  double _normalizeDailyTarget(dynamic value) {
+    if (value is! num) return 0;
+    final target = value.toDouble();
+
+    if (!target.isFinite || target <= 0) return 0;
+
+    // Daily calorie target that is too low/high is considered invalid.
+    if (target < 500 || target > 6000) return 0;
+
+    return target;
+  }
+
+  double _resolveProfileDailyTarget(dynamic user) {
+    if (user is! Map) {
+      return _defaultTargetCalo > 0 ? _defaultTargetCalo : 1200;
+    }
+
+    final safeUser = Map<String, dynamic>.from(user);
+
+    // Source of truth: calories recommended by onboarding goal calculation.
+    final target = _normalizeDailyTarget(safeUser['targetCalo']);
+    final maintenance = _normalizeDailyTarget(safeUser['maintenanceCalo']);
+    final tdee = _normalizeDailyTarget(safeUser['tdee']);
+
+    if (target > 0) return target;
+    if (maintenance > 0) return maintenance;
+    if (tdee > 0) return tdee;
+
+    return _defaultTargetCalo > 0 ? _defaultTargetCalo : 1200;
   }
 
   List<Map<String, dynamic>> _asMapList(dynamic value) {
@@ -98,11 +146,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
     bool migratedLegacyTarget = false;
 
     setState(() {
-      final savedTargetCalo = (data['targetCalo'] as num?)?.toDouble();
+      final savedTargetCalo = _normalizeDailyTarget(data['targetCalo']);
 
       // Migrate dữ liệu cũ: trước đây target mặc định luôn bị lưu là 1200.
       final isLegacyDefault =
-          savedTargetCalo != null &&
+          savedTargetCalo > 0 &&
           savedTargetCalo == widget.initialCalo &&
           _defaultTargetCalo != widget.initialCalo;
 
@@ -110,10 +158,12 @@ class _DiaryScreenState extends State<DiaryScreen> {
         migratedLegacyTarget = true;
       }
 
-      _targetCalo =
-          (savedTargetCalo != null && savedTargetCalo > 0 && !isLegacyDefault)
-          ? savedTargetCalo
-          : _defaultTargetCalo;
+      // Profile-calculated target is the source of truth for daily calories.
+      _targetCalo = _defaultTargetCalo > 0
+          ? _defaultTargetCalo
+          : ((savedTargetCalo > 0 && !isLegacyDefault)
+                ? savedTargetCalo
+                : widget.initialCalo);
       _targetCarb =
           (data['targetCarb'] as num?)?.toDouble() ?? (_targetCalo * 0.5) / 4;
       _targetProtein =
@@ -591,14 +641,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          'diary.title'.tr(),
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.normal,
-            color: Colors.black87,
-          ),
-        ),
+        automaticallyImplyLeading: false,
+        title: Text('diary.title'.tr(), style: AppTypography.pageTitle),
         actions: [
           IconButton(
             icon: Icon(Icons.add_circle, color: _greenColor, size: 36),
@@ -674,9 +718,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
   }
 
   Widget _buildCalorieTracker(double taken, double burnt) {
-    double remaining = _targetCalo - taken + burnt;
-    double progress = _targetCalo > 0 ? (taken / _targetCalo) : 0.0;
-    if (progress > 1.0) progress = 1.0;
+    final requiredIntake = (_targetCalo + burnt).clamp(0.0, double.infinity);
+    final remaining = (requiredIntake - taken).clamp(0.0, double.infinity);
+    final progress = requiredIntake > 0
+        ? (taken / requiredIntake).clamp(0.0, 1.0)
+        : 0.0;
 
     return SizedBox(
       height: 100,
@@ -934,6 +980,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
+        leading: const SizedBox(width: 24),
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
         collapsedBackgroundColor: bgColor,
         backgroundColor: _macroBgColor.withOpacity(0.35),

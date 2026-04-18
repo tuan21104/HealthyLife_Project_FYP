@@ -28,12 +28,14 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>HealthyLife cần quyền truy cập máy ảnh để bạn có thể chụp ảnh đại diện và hóa đơn trực tiếp.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>HealthyLife cần quyền truy cập micro (nếu bạn quay video đơn hàng).</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>HealthyLife cần quyền truy cập thư viện ảnh để bạn có thể tải lên ảnh đại diện và hóa đơn thanh toán.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>HealthyLife cần quyền vị trí để tự động điền địa chỉ giao hàng chính xác cho bạn.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ứng dụng cần quyền sử dụng micro để nhận diện giọng nói.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HealthyLife cần quyền truy cập thư viện ảnh để bạn có thể tải lên ảnh đại diện và hóa đơn thanh toán.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Ứng dụng cần quyền nhận diện giọng nói để chuyển thành văn bản.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -57,6 +59,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -74,9 +80,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSMicrophoneUsageDescription</key>
-<string>Ứng dụng cần quyền sử dụng micro để nhận diện giọng nói.</string>
-<key>NSSpeechRecognitionUsageDescription</key>
-<string>Ứng dụng cần quyền nhận diện giọng nói để chuyển thành văn bản.</string>
 </dict>
 </plist>

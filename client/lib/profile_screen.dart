@@ -8,6 +8,7 @@ import 'user_info_step1_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'modal_effects.dart';
 import 'animation_presets.dart';
+import 'core/theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -86,14 +87,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          'profile.title'.tr(),
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 24,
-            fontWeight: FontWeight.normal,
-          ),
-        ),
+        automaticallyImplyLeading: false,
+        title: Text('profile.title'.tr(), style: AppTypography.pageTitle),
         centerTitle: false,
       ),
       body: _isLoading

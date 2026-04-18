@@ -4,6 +4,7 @@ import 'dart:math';
 import 'congratulations_screen.dart';
 import 'services/auth_service.dart';
 import 'modal_effects.dart';
+import 'core/theme/app_theme.dart';
 
 class TargetWeightScreen extends StatefulWidget {
   final double currentHeight;
@@ -92,7 +93,71 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
     }
 
     // Tốc độ chuẩn y khoa: ~0.5kg/tuần (1kg = 14 ngày)
-    _suggestedDays = (_suggestedWeightLoss * 14).round();
+    _suggestedDays = max(14, (_suggestedWeightLoss * 14).round());
+  }
+
+  int _calculateAccurateAge(DateTime dob) {
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    final hadBirthdayThisYear =
+        (now.month > dob.month) ||
+        (now.month == dob.month && now.day >= dob.day);
+    if (!hadBirthdayThisYear) {
+      age -= 1;
+    }
+    return age.clamp(13, 100);
+  }
+
+  double _activityMultiplier(String activity, int weeklyMovement) {
+    final normalized = activity.toLowerCase();
+
+    if (normalized.contains('sedentary')) return 1.2;
+    if (normalized.contains('light')) return 1.375;
+    if (normalized.contains('moderate')) return 1.55;
+    if (normalized.contains('very')) return 1.725;
+    if (normalized.contains('active')) return 1.9;
+
+    // Fallback using weekly movement (minutes/week)
+    if (weeklyMovement < 90) return 1.2;
+    if (weeklyMovement < 180) return 1.375;
+    if (weeklyMovement < 360) return 1.55;
+    if (weeklyMovement < 540) return 1.725;
+    return 1.9;
+  }
+
+  int _safeMinCalories(String gender, int maintenanceCalo) {
+    final normalizedGender = gender.toLowerCase();
+    final genderFloor = normalizedGender == 'male'
+        ? 1500
+        : normalizedGender == 'female'
+        ? 1200
+        : 1300;
+
+    final maintenanceFloor = (maintenanceCalo * 0.7).round();
+    return max(genderFloor, maintenanceFloor);
+  }
+
+  int _safeMaxCalories(int maintenanceCalo) {
+    // Safe surplus usually ~10-20% or <= 500 kcal/day.
+    final percentBased = (maintenanceCalo * 1.2).round();
+    return min(percentBased, maintenanceCalo + 500);
+  }
+
+  bool _isGoalMismatch(String goal, double targetWeight) {
+    const threshold = 0.2; // Ignore tiny fluctuations
+    final diff = targetWeight - widget.currentWeight;
+    final normalizedGoal = goal.toLowerCase();
+
+    if (normalizedGoal.contains('losing')) {
+      return diff >= -threshold;
+    }
+    if (normalizedGoal.contains('gaining')) {
+      return diff <= threshold;
+    }
+    if (normalizedGoal.contains('keeping') || normalizedGoal.contains('fit')) {
+      return diff.abs() > 1.0;
+    }
+    return false;
   }
 
   // --- BƯỚC 1: KIỂM TRA RÀO CHẮN Y KHOA TRƯỚC ---
@@ -120,14 +185,33 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
         double.tryParse(_targetWeightController.text) ?? defaultTarget;
     int days = int.tryParse(_daysController.text) ?? _suggestedDays;
 
-    if (days <= 0) return; // Tránh lỗi chia cho 0
+    if (days <= 0) {
+      days = max(14, _suggestedDays);
+    }
+
+    final goal = (_userData?['goal'] ?? '').toString();
+    if (_isGoalMismatch(goal, targetInputWeight)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _trSafe(
+              'onboarding.choose_logical_weight_duration',
+              vi: 'Mục tiêu cân nặng chưa khớp với mục tiêu đã chọn (tăng/giảm/giữ cân). Vui lòng kiểm tra lại.',
+              en: 'Your target weight does not match your selected goal (lose/gain/maintain). Please review it.',
+            ),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     // Tính tốc độ thay đổi cân nặng (kg/tuần)
     double weightDifference = widget.currentWeight - targetInputWeight;
     double kgPerWeek = (weightDifference.abs() / days) * 7;
 
-    // Nếu ép cân/tăng cân quá nhanh (> 1.0 kg/tuần) -> Bật Pop-up Cảnh báo
-    if (kgPerWeek > 1.0) {
+    // Cảnh báo nếu tốc độ vượt vùng an toàn bền vững.
+    if (kgPerWeek > 0.75) {
       _showWarningDialog(kgPerWeek, () {
         _finalizeAndNavigate(targetInputWeight, days, weightDifference);
       });
@@ -225,11 +309,12 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
     DateTime dob =
         DateTime.tryParse(_userData!['birthDate'] ?? "") ??
         DateTime(2000, 1, 1);
-    int age = DateTime.now().year - dob.year;
+    int age = _calculateAccurateAge(dob);
 
     // 2. Lấy Giới tính và Mức vận động
     String gender = _userData!['gender'] ?? 'Male';
     String activity = _userData!['activityLevel'] ?? 'Sedentary';
+    final weeklyMovement = ((_userData!['weeklyMovement'] ?? 0) as num).toInt();
 
     // 3. Tính BMR
     double bmr =
@@ -237,13 +322,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
     bmr += (gender == 'Male') ? 5 : -161;
 
     // 4. Tính TDEE (Calo duy trì)
-    double multiplier = 1.2;
-    if (activity.contains("Lightly"))
-      multiplier = 1.375;
-    else if (activity.contains("Moderately"))
-      multiplier = 1.55;
-    else if (activity.contains("Very"))
-      multiplier = 1.725;
+    final multiplier = _activityMultiplier(activity, weeklyMovement);
 
     int maintenanceCalo = (bmr * multiplier).round();
 
@@ -256,9 +335,9 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
     }
 
     // 6. Giới hạn an toàn y khoa về lượng Calo tối thiểu/tối đa
-    if (targetCalo < 1200) targetCalo = 1200;
-    if (targetCalo > maintenanceCalo + 1000)
-      targetCalo = maintenanceCalo + 1000;
+    final minSafeCalories = _safeMinCalories(gender, maintenanceCalo);
+    final maxSafeCalories = _safeMaxCalories(maintenanceCalo);
+    targetCalo = targetCalo.clamp(minSafeCalories, maxSafeCalories);
 
     // 7. Lưu mục tiêu lên profile để có thể hiển thị lại ở Profile screen
     await AuthService.updateProfile({
@@ -304,7 +383,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
             vi: 'Cân nặng mục tiêu của bạn',
             en: 'Your Target Weight',
           ),
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+          style: AppTypography.pageTitle,
         ),
       ),
       body: SafeArea(
@@ -321,7 +400,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
                   vi: 'Khoảng cân nặng khỏe mạnh của bạn:',
                   en: 'Your healthy weight range:',
                 ),
-                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                style: AppTypography.sectionTitle,
               ),
               const SizedBox(height: 10),
               Text(
@@ -341,7 +420,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
                   vi: 'Đề xuất của chúng tôi:',
                   en: 'Our Suggestion:',
                 ),
-                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                style: AppTypography.sectionTitle,
               ),
               const SizedBox(height: 10),
               RichText(
@@ -388,7 +467,7 @@ class _TargetWeightScreenState extends State<TargetWeightScreen> {
                   vi: 'Chọn mức cân nặng và thời gian hợp lý',
                   en: 'Choose a logical weight and duration',
                 ),
-                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                style: AppTypography.subtitle,
               ),
               const SizedBox(height: 16),
 

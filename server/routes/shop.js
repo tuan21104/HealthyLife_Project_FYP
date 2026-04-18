@@ -147,10 +147,10 @@ router.get('/history/:userId', async (req, res) => {
 
 // --- API REDEEM (ĐẶT HÀNG & ĐỔI QUÀ) ---
 router.post('/redeem', async (req, res) => {
-  const { userId, productId } = req.body;
-  const quantity = Math.max(1, parseInt(req.body.quantity, 10) || 1);
+  const { userId } = req.body;
   const billUrl = (req.body.billUrl || '').trim();
   const address = (req.body.address || '').trim();
+  const phoneNumber = (req.body.phoneNumber || '').trim();
   const deliveryAddress = (req.body.deliveryAddress || address).trim();
   const latRaw = req.body.lat ?? req.body.coordinates?.lat;
   const lngRaw = req.body.lng ?? req.body.coordinates?.lng;
@@ -170,9 +170,8 @@ router.post('/redeem', async (req, res) => {
 
   try {
     const user = await User.findById(userId);
-    const product = await Product.findById(productId);
 
-    if (!user || !product) {
+    if (!user) {
       return res.status(404).json({ success: false, message: "Dữ liệu không tồn tại" });
     }
 
@@ -180,87 +179,140 @@ router.post('/redeem', async (req, res) => {
       return res.status(400).json({ success: false, message: "Vui lòng nhập địa chỉ nhận hàng" });
     }
 
-    const productTotalVnd = (product.priceVND || 0) * quantity;
-    const totalAmount = productTotalVnd + shippingFee;
-    const safeProductImageUrl = await resolveImageUrlOrFallback(
-      product.imageUrl,
-      product.category
-    );
+    const incomingItems = Array.isArray(req.body.items) ? req.body.items : [];
+    const fallbackProductId = (req.body.productId || '').toString().trim();
+    const fallbackQuantity = Math.max(1, parseInt(req.body.quantity, 10) || 1);
 
-    // 1. Khấu trừ Calo nếu có
-    const cost = (product.priceCalo || 0) * quantity; 
-    if (user.targetCalo < cost) {
-      return res.status(400).json({ success: false, message: "Không đủ Calo để đổi món này!" });
+    const checkoutItems = incomingItems.length > 0
+      ? incomingItems
+      : [{ productId: fallbackProductId, quantity: fallbackQuantity }];
+
+    const normalizedItems = checkoutItems
+      .map((item) => ({
+        productId: (item.productId || '').toString().trim(),
+        quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
+      }))
+      .filter((item) => item.productId);
+
+    if (normalizedItems.length === 0) {
+      return res.status(400).json({ success: false, message: 'Giỏ hàng không hợp lệ' });
     }
 
-    user.targetCalo -= cost;
+    const productIds = [...new Set(normalizedItems.map((item) => item.productId))];
+    const products = await Product.find({ _id: { $in: productIds } });
+    const productMap = new Map(products.map((product) => [product._id.toString(), product]));
+
+    const invalidItem = normalizedItems.find((item) => !productMap.has(item.productId));
+    if (invalidItem) {
+      return res.status(404).json({ success: false, message: 'Có sản phẩm không còn tồn tại' });
+    }
+
+    const mealField = getMealFieldByHour(new Date().getHours());
+    let diary = null;
+    let totalCostCalo = 0;
+    let totalProductVnd = 0;
+    const resolvedItems = [];
+
+    for (const item of normalizedItems) {
+      const product = productMap.get(item.productId);
+      const quantity = item.quantity;
+      const productTotalVnd = (product.priceVND || 0) * quantity;
+      const productTotalCalo = (product.priceCalo || 0) * quantity;
+
+      totalProductVnd += productTotalVnd;
+      totalCostCalo += productTotalCalo;
+
+      if (product.category === 'food') {
+        if (!diary) {
+          diary = await Diary.findOne({ userId, date: today });
+          if (!diary) diary = new Diary({ userId, date: today });
+        }
+
+        diary[mealField].push({
+          name: product.name,
+          amount: `${quantity} phần`,
+          kcal: (product.calories || 0) * quantity,
+          calories: (product.calories || 0) * quantity,
+          carb: 0,
+          protein: 0,
+          fat: 0,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          source: 'shop',
+          productId: product._id.toString(),
+        });
+      }
+
+      const safeProductImageUrl = await resolveImageUrlOrFallback(
+        product.imageUrl,
+        product.category
+      );
+
+      resolvedItems.push({
+        productId: product._id,
+        productName: product.name,
+        productCategory: product.category,
+        productImageUrl: safeProductImageUrl,
+        quantity,
+        totalVnd: productTotalVnd,
+        totalCalo: productTotalCalo,
+      });
+    }
+
+    if (user.targetCalo < totalCostCalo) {
+      return res.status(400).json({ success: false, message: 'Không đủ Calo để đặt đơn này!' });
+    }
+
+    user.targetCalo -= totalCostCalo;
     await user.save();
 
-    // 2. Tự động ghi Diary nếu là FOOD
-    if (product.category === 'food') {
-      let diary = await Diary.findOne({ userId, date: today });
-      if (!diary) diary = new Diary({ userId, date: today });
-
-      const mealField = getMealFieldByHour(new Date().getHours());
-      
-      diary[mealField].push({
-        name: product.name,
-        amount: `${quantity} phần`,
-        kcal: (product.calories || 0) * quantity,
-        calories: (product.calories || 0) * quantity,
-        carb: 0,
-        protein: 0,
-        fat: 0,
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        source: 'shop',
-        productId: product._id.toString(),
-      });
+    if (diary) {
       await diary.save();
-
-      await Order.create({
-        userId,
-        productId: product._id,
-        productName: product.name,
-        productCategory: product.category,
-        productImageUrl: safeProductImageUrl,
-        quantity,
-        totalVnd: productTotalVnd,
-        totalCalo: cost,
-        address: deliveryAddress,
-        deliveryAddress,
-        ...(hasValidCoordinates ? { coordinates: { lat, lng } } : {}),
-        distanceKm,
-        shippingFee,
-        totalAmount,
-        billUrl,
-        mealField,
-        status: 'pending',
-        createdAtText: new Date().toLocaleString('vi-VN'),
-      });
-    } else {
-      await Order.create({
-        userId,
-        productId: product._id,
-        productName: product.name,
-        productCategory: product.category,
-        productImageUrl: safeProductImageUrl,
-        quantity,
-        totalVnd: productTotalVnd,
-        totalCalo: cost,
-        address: deliveryAddress,
-        deliveryAddress,
-        ...(hasValidCoordinates ? { coordinates: { lat, lng } } : {}),
-        distanceKm,
-        shippingFee,
-        totalAmount,
-        billUrl,
-        mealField: '',
-        status: 'pending',
-        createdAtText: new Date().toLocaleString('vi-VN'),
-      });
     }
 
+    const totalAmount = totalProductVnd + shippingFee;
+    const totalQuantity = resolvedItems.reduce((sum, item) => sum + item.quantity, 0);
+    const representativeItem = resolvedItems[0];
+
+    await Order.create({
+      userId,
+      productId: representativeItem.productId,
+      productName:
+        resolvedItems.length > 1
+          ? `${resolvedItems.length} món (${representativeItem.productName}...)`
+          : representativeItem.productName,
+      productCategory: resolvedItems.length > 1 ? 'mixed' : representativeItem.productCategory,
+      productImageUrl: representativeItem.productImageUrl,
+      quantity: totalQuantity,
+      totalVnd: totalProductVnd,
+      totalCalo: totalCostCalo,
+      address: deliveryAddress,
+      deliveryAddress,
+      phoneNumber,
+      ...(hasValidCoordinates ? { coordinates: { lat, lng } } : {}),
+      distanceKm,
+      shippingFee,
+      totalAmount,
+      billUrl,
+      mealField: diary ? mealField : '',
+      status: 'pending',
+      createdAtText: new Date().toLocaleString('vi-VN'),
+      items: resolvedItems,
+    });
+
     // 3. Gửi Email thông báo đơn hàng cho Tuấn
+    const itemsHtml = resolvedItems
+      .map(
+        (item, index) =>
+          `<tr>
+            <td style="padding:6px 8px;border:1px solid #eee;">${index + 1}</td>
+            <td style="padding:6px 8px;border:1px solid #eee;">${item.productName}</td>
+            <td style="padding:6px 8px;border:1px solid #eee;text-align:center;">${item.quantity}</td>
+            <td style="padding:6px 8px;border:1px solid #eee;text-align:right;">${item.totalVnd} VNĐ</td>
+            <td style="padding:6px 8px;border:1px solid #eee;text-align:right;">${item.totalCalo} kcal</td>
+          </tr>`
+      )
+      .join('');
+
     const mailOptions = {
       from: '"HealthyLife System" <phantuan9d@gmail.com>',
       to: 'phantuan9d@gmail.com',
@@ -269,9 +321,22 @@ router.post('/redeem', async (req, res) => {
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee;">
           <h2 style="color: #76B543;">Thông tin đơn hàng mới</h2>
           <p><b>Khách hàng:</b> ${user.name} (${user.email})</p>
-          <p><b>Sản phẩm:</b> ${product.name}</p>
-          <p><b>Số lượng:</b> ${quantity}</p>
-          <p><b>Tiền sản phẩm:</b> ${productTotalVnd} VNĐ + ${cost} kcal</p>
+          <p><b>Số điện thoại:</b> ${phoneNumber || 'Không cung cấp'}</p>
+          <p><b>Số món:</b> ${resolvedItems.length}</p>
+          <p><b>Tổng số lượng:</b> ${totalQuantity}</p>
+          <table style="border-collapse:collapse; width:100%; margin-top:12px; margin-bottom:12px; font-size:14px;">
+            <thead>
+              <tr>
+                <th style="padding:6px 8px;border:1px solid #eee; text-align:left;">#</th>
+                <th style="padding:6px 8px;border:1px solid #eee; text-align:left;">Sản phẩm</th>
+                <th style="padding:6px 8px;border:1px solid #eee; text-align:center;">SL</th>
+                <th style="padding:6px 8px;border:1px solid #eee; text-align:right;">Thành tiền</th>
+                <th style="padding:6px 8px;border:1px solid #eee; text-align:right;">Calo</th>
+              </tr>
+            </thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          <p><b>Tiền sản phẩm:</b> ${totalProductVnd} VNĐ + ${totalCostCalo} kcal</p>
           <p><b>Khoảng cách:</b> ${distanceKm} km</p>
           <p><b>Phí giao hàng:</b> ${shippingFee} VNĐ</p>
           <p><b>Tổng thanh toán:</b> ${totalAmount} VNĐ</p>

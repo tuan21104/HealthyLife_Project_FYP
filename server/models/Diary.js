@@ -14,7 +14,8 @@ const diarySchema = new mongoose.Schema({
   targetCarb: { type: Number, default: 150 },
   targetProtein: { type: Number, default: 60 },
   targetFat: { type: Number, default: 40 },
-  
+  waterIntake: { type: Number, default: 0 }, // ml
+
   // Lưu danh sách món ăn của từng bữa
   breakfast: { type: Array, default: [] },
   lunch: { type: Array, default: [] },

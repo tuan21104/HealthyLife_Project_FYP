@@ -11,6 +11,7 @@ import 'services/auth_service.dart';
 import 'main_screen.dart';
 import 'modal_effects.dart';
 import 'animation_presets.dart';
+import 'core/theme/app_theme.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -64,6 +65,8 @@ class _ShopScreenState extends State<ShopScreen> {
   int _shippingFeeVnd = 0;
   int _totalPriceVnd = 0;
   bool _isCalculatingShipping = false;
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _phoneEditingController = TextEditingController();
 
   @override
   void initState() {
@@ -80,6 +83,8 @@ class _ShopScreenState extends State<ShopScreen> {
     _searchController.dispose();
     _addressController.dispose();
     _addressEditingController.dispose();
+    _phoneController.dispose();
+    _phoneEditingController.dispose();
     super.dispose();
   }
 
@@ -150,6 +155,11 @@ class _ShopScreenState extends State<ShopScreen> {
           _totalPriceVnd = (_cartSubtotal + shippingFee).round();
           _addressController.text = address.trim();
           _isCalculatingShipping = false;
+
+          // Check if distance exceeds 10km
+          if (distanceKm > 10) {
+            _showDistanceTooFarDialog(distanceKm);
+          }
         });
       }
     } catch (e) {
@@ -947,6 +957,12 @@ class _ShopScreenState extends State<ShopScreen> {
                 ),
                 const SizedBox(height: 14),
                 _buildCheckoutCard(
+                  icon: Icons.phone_outlined,
+                  label: 'shop.delivery_phone'.tr(),
+                  child: _buildDeliveryPhoneCard(),
+                ),
+                const SizedBox(height: 14),
+                _buildCheckoutCard(
                   icon: Icons.credit_card_outlined,
                   label: 'shop.payment_from'.tr(),
                   child: const Text(
@@ -1378,11 +1394,7 @@ class _ShopScreenState extends State<ShopScreen> {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: _darkText,
-              ),
+              style: AppTypography.pageTitle,
             ),
           ),
           const SizedBox(width: 48),
@@ -1620,6 +1632,40 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
+  void _showDistanceTooFarDialog(double distanceKm) {
+    ModalEffects.showScaleFadeDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'shop.distance_too_far'.tr(),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: _darkText,
+          ),
+        ),
+        content: Text(
+          'shop.distance_limit_message'.tr(),
+          style: const TextStyle(fontSize: 14, color: _mutedText, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'common.ok'.tr(),
+              style: TextStyle(
+                color: _primaryGreen,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _placeOrder() async {
     if (_cartItems.isEmpty) return;
 
@@ -1630,6 +1676,135 @@ class _ShopScreenState extends State<ShopScreen> {
           content: Text(
             '${'common.warning'.tr()}: ${'shop.delivery_address'.tr()}',
           ),
+        ),
+      );
+      return;
+    }
+
+    // Check if bill image is attached
+    if (_billImage == null) {
+      ModalEffects.showScaleFadeDialog(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'shop.bill_required'.tr(),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: _darkText,
+            ),
+          ),
+          content: Text(
+            'shop.bill_required_message'.tr(),
+            style: const TextStyle(
+              fontSize: 14,
+              color: _mutedText,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'common.ok'.tr(),
+                style: TextStyle(
+                  color: _primaryGreen,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Check if phone number is entered
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
+      ModalEffects.showScaleFadeDialog(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'shop.phone_required'.tr(),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: _darkText,
+            ),
+          ),
+          content: Text(
+            'shop.phone_required_message'.tr(),
+            style: const TextStyle(
+              fontSize: 14,
+              color: _mutedText,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'common.ok'.tr(),
+                style: TextStyle(
+                  color: _primaryGreen,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Validate phone number (basic validation)
+    if (!RegExp(
+      r'^[0-9]{9,11}$',
+    ).hasMatch(phone.replaceAll(RegExp(r'[^\d]'), ''))) {
+      ModalEffects.showScaleFadeDialog(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'shop.phone_required'.tr(),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: _darkText,
+            ),
+          ),
+          content: Text(
+            'shop.valid_phone_required'.tr(),
+            style: const TextStyle(
+              fontSize: 14,
+              color: _mutedText,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'common.ok'.tr(),
+                style: TextStyle(
+                  color: _primaryGreen,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ),
       );
       return;
@@ -1646,30 +1821,36 @@ class _ShopScreenState extends State<ShopScreen> {
         }
       }
 
-      for (final item in _cartItems) {
-        final product = item['product'] as Map<String, dynamic>;
-        final quantity = item['quantity'] as int;
+      final orderItems = _cartItems
+          .map((item) {
+            final product = item['product'] as Map<String, dynamic>;
+            return <String, dynamic>{
+              'productId': product['_id']?.toString() ?? '',
+              'quantity': item['quantity'] as int,
+            };
+          })
+          .where((item) => (item['productId'] as String).isNotEmpty)
+          .toList();
 
-        final response = await AuthService.redeemProduct(
-          productId: product['_id'].toString(),
-          billUrl: billUrl,
-          address: address,
-          distanceKm: _distanceFromStoreKm,
-          shippingFee: _shippingFee,
-          quantity: quantity,
-        );
+      final response = await AuthService.redeemProduct(
+        items: orderItems,
+        billUrl: billUrl,
+        address: address,
+        distanceKm: _distanceFromStoreKm,
+        shippingFee: _shippingFee,
+        phoneNumber: phone,
+      );
 
-        if (response?['success'] != true) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                response?['message']?.toString() ?? 'common.error'.tr(),
-              ),
+      if (response?['success'] != true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response?['message']?.toString() ?? 'common.error'.tr(),
             ),
-          );
-          return;
-        }
+          ),
+        );
+        return;
       }
 
       if (!mounted) return;
@@ -1723,6 +1904,19 @@ class _ShopScreenState extends State<ShopScreen> {
 
       _recomputeTotalPrice();
     });
+
+    // Show success toast
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('shop.added_to_cart'.tr()),
+          duration: const Duration(seconds: 2),
+          backgroundColor: _primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
   }
 
   void _updateCartQty(String productId, int quantity) {
@@ -2000,6 +2194,39 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDeliveryPhoneCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _darkText,
+          ),
+          decoration: InputDecoration(
+            hintText: 'shop.phone_number'.tr(),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: _softBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: _primaryGreen, width: 2),
+            ),
+            contentPadding: const EdgeInsets.all(12),
+            prefixIcon: const Padding(
+              padding: EdgeInsets.only(left: 12, right: 8),
+              child: Icon(Icons.phone_outlined, color: _mutedText, size: 18),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

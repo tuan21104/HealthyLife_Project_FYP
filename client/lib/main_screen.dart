@@ -17,6 +17,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   // Biến lưu trữ tab đang được chọn (Mặc định là 0 - Home)
   late int _selectedIndex;
+  int _diaryRefreshSignal = 0;
   Locale? _currentLocale;
   int _localeVersion = 0;
 
@@ -52,7 +53,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       KeyedSubtree(
         key: ValueKey('diary_${_currentLocale?.languageCode}_$_localeVersion'),
-        child: const DiaryScreen(),
+        child: DiaryScreen(refreshSignal: _diaryRefreshSignal),
       ),
       KeyedSubtree(
         key: ValueKey(
@@ -72,6 +73,9 @@ class _MainScreenState extends State<MainScreen> {
   // Hàm xử lý khi người dùng bấm vào một tab
   void _onItemTapped(int index) {
     setState(() {
+      if (index == 1) {
+        _diaryRefreshSignal++;
+      }
       _selectedIndex = index;
     });
   }

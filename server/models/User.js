@@ -106,6 +106,10 @@ const UserSchema = new mongoose.Schema({
         type: Number, 
         default: null 
     },
+    fcmToken: {
+        type: String,
+        default: ''
+    },
     
     // 4. Kết quả tính toán (Server tự tính và lưu vào đây)
     bmi: { type: Number, default: 0 },

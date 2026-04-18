@@ -5,6 +5,7 @@ const cors = require('cors');
 
 const authRoute = require('./routes/auth');
 const foodRoutes = require('./routes/food'); 
+require('./jobs/waterReminder');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/statistics', require('./routes/statistics'));
 app.use('/api/shop', require('./routes/shop'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/expense', require('./routes/expense'));
+app.use('/api/test', require('./routes/test'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

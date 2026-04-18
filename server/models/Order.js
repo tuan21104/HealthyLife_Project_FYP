@@ -11,6 +11,7 @@ const orderSchema = new mongoose.Schema({
   totalCalo: { type: Number, required: true }, // Số calo bị trừ
   address: { type: String, required: true },
   deliveryAddress: { type: String, default: '' },
+  phoneNumber: { type: String, default: '' },
   coordinates: {
     lat: { type: Number, default: null },
     lng: { type: Number, default: null }
@@ -19,6 +20,17 @@ const orderSchema = new mongoose.Schema({
   shippingFee: { type: Number, default: 0 },
   totalAmount: { type: Number, default: 0 },
   billUrl: { type: String, default: '' },
+  items: [
+    {
+      productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+      productName: { type: String, default: '' },
+      productCategory: { type: String, default: '' },
+      productImageUrl: { type: String, default: '' },
+      quantity: { type: Number, default: 1 },
+      totalVnd: { type: Number, default: 0 },
+      totalCalo: { type: Number, default: 0 },
+    }
+  ],
   mealField: { type: String, default: '' },
   status: {
     type: String,

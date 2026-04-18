@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'dart:io'; // Quan trọng để dùng HttpOverrides
+import 'dart:io';
 import 'landing_screen.dart';
+import 'core/theme/app_theme.dart';
+import 'services/notification_service.dart';
 
 // Class này giúp bỏ qua kiểm tra chứng chỉ SSL lỗi thời trên máy ảo Android
 class MyHttpOverrides extends HttpOverrides {
@@ -25,6 +27,9 @@ void main() async {
 
   // Tải các biến môi trường
   await dotenv.load(fileName: ".env");
+
+  // Khởi tạo Firebase Messaging
+  await NotificationService.initializeFirebaseMessaging();
 
   runApp(
     EasyLocalization(
@@ -51,10 +56,7 @@ class MyApp extends StatelessWidget {
       supportedLocales:
           localization?.supportedLocales ?? const [Locale('en'), Locale('vi')],
       localizationsDelegates: localization?.delegates,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF4CAF50),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
       home: const LandingScreen(),
     );
   }

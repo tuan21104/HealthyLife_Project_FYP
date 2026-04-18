@@ -256,7 +256,18 @@
     "popular_items": "Sản phẩm phổ biến",
     "scan_qr_to_pay": "Quét QR để thanh toán",
     "top_categories": "Danh mục nổi bật",
-    "top_discount": "Ưu đãi tốt nhất"
+    "top_discount": "Ưu đãi tốt nhất",
+    "added_to_cart": "Đã thêm vào giỏ hàng!",
+    "phone_number": "Số điện thoại",
+    "delivery_phone": "Số điện thoại nhận hàng",
+    "distance_too_far": "Ngoài vùng giao hàng",
+    "distance_limit_message": "Địa chỉ giao hàng cách xa trên 10km. Chúng tôi không thể giao hàng đến khu vực này. Vui lòng chọn địa chỉ khác.",
+    "bill_required": "Cần đính kèm ảnh thanh toán",
+    "bill_required_message": "Vui lòng đính kèm ảnh hóa đơn (minh chứng thanh toán) trước khi đặt hàng.",
+    "phone_required": "Cần số điện thoại",
+    "phone_required_message": "Vui lòng nhập số điện thoại để nhận hàng.",
+    "valid_phone_required": "Vui lòng nhập số điện thoại hợp lệ",
+    "item_added_to_cart": "{product} đã được thêm vào giỏ hàng"
   },
   "home": {
     "title": "Trang chủ",

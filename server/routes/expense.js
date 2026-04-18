@@ -2,6 +2,50 @@ const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
 const Expense = require('../models/Expense');
+const User = require('../models/User');
+const { sendPushNotification } = require('../services/firebaseService');
+
+function getDayRange(date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start, end };
+}
+
+function getMonthRange(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 1);
+  return { start, end };
+}
+
+function getDaysRemainingInMonth(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return Math.max(1, lastDay - date.getDate() + 1);
+}
+
+async function getExpenseSum(userId, startDate, endDate) {
+  const result = await Expense.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        date: { $gte: startDate, $lt: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmount: { $sum: '$amount' },
+      },
+    },
+  ]);
+
+  return Number(result[0]?.totalAmount || 0);
+}
 
 router.get('/:userId', async (req, res) => {
   try {
@@ -48,6 +92,36 @@ router.post('/add', async (req, res) => {
       note: typeof note === 'string' ? note.trim() : '',
       date: expenseDate
     });
+
+    const user = await User.findById(userId).select('monthlyBudget fcmToken');
+
+    if (user) {
+      const { start: dayStart, end: dayEnd } = getDayRange(expenseDate);
+      const { start: monthStart, end: monthEnd } = getMonthRange(expenseDate);
+
+      const totalSpentToday = await getExpenseSum(userId, dayStart, dayEnd);
+      const totalSpentThisMonth = await getExpenseSum(userId, monthStart, monthEnd);
+
+      const monthlyBudget = Number(user.monthlyBudget || 0);
+      const daysRemaining = getDaysRemainingInMonth(expenseDate);
+      const safeDailyBudget = (monthlyBudget - totalSpentThisMonth) / daysRemaining;
+      const overspendingThreshold = safeDailyBudget * 1.2;
+
+      if (totalSpentToday > overspendingThreshold && user.fcmToken) {
+        await sendPushNotification(
+          user.fcmToken,
+          'Cảnh báo chi tiêu',
+          'Cảnh báo: Bạn đã tiêu quá mức trung bình ngày hôm nay!',
+          {
+            type: 'expense_alert',
+            userId: String(userId),
+            date: expenseDate.toISOString(),
+            totalSpentToday: totalSpentToday.toFixed(2),
+            safeDailyBudget: safeDailyBudget.toFixed(2),
+          }
+        );
+      }
+    }
 
     res.status(201).json({ success: true, expense });
   } catch (error) {

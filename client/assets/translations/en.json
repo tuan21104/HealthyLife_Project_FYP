@@ -256,7 +256,18 @@
     "popular_items": "Popular items",
     "scan_qr_to_pay": "Scan QR to pay",
     "top_categories": "Top categories",
-    "top_discount": "Top discount"
+    "top_discount": "Top discount",
+    "added_to_cart": "Added to cart!",
+    "phone_number": "Phone Number",
+    "delivery_phone": "Delivery Phone Number",
+    "distance_too_far": "Delivery Area Out of Range",
+    "distance_limit_message": "The delivery address is more than 10km away. We cannot deliver to this area. Please choose another address.",
+    "bill_required": "Bill Image Required",
+    "bill_required_message": "Please attach a bill image (proof of payment) before placing your order.",
+    "phone_required": "Phone Number Required",
+    "phone_required_message": "Please enter your phone number for delivery.",
+    "valid_phone_required": "Please enter a valid phone number",
+    "item_added_to_cart": "{product} added to cart"
   },
   "home": {
     "title": "Home",

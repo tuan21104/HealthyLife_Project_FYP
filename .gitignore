@@ -1,8 +1,13 @@
-# Bỏ qua file của Backend
+# ==========================================
+# BACKEND (NODE.JS)
+# ==========================================
 server/node_modules/
 server/.env
+server/serviceAccountKey.json    
 
-# Bỏ qua file của Frontend (Flutter)
+# ==========================================
+# FRONTEND (FLUTTER)
+# ==========================================
 client/build/
 client/.dart_tool/
 client/.idea/
@@ -10,5 +15,8 @@ client/android/.gradle/
 client/ios/.symlinks/
 client/ios/Pods/
 
-# Bỏ qua file hệ thống máy tính
+# ==========================================
+# HỆ THỐNG MÁY TÍNH
+# ==========================================
 .DS_Store
+Thumbs.db

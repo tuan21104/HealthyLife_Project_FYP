@@ -35,6 +35,43 @@ function normalizeGender(value) {
   return alias[normalized] || normalized;
 }
 
+router.put('/fcm-token', async (req, res) => {
+  try {
+    const { userId, fcmToken } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'userId không hợp lệ' });
+    }
+
+    if (fcmToken !== undefined && fcmToken !== null && typeof fcmToken !== 'string') {
+      return res.status(400).json({ success: false, message: 'fcmToken phải là chuỗi' });
+    }
+
+    const normalizedToken = typeof fcmToken === 'string' ? fcmToken.trim() : '';
+    if (normalizedToken.length > 4096) {
+      return res.status(400).json({ success: false, message: 'fcmToken quá dài' });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fcmToken: normalizedToken },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật fcmToken',
+      user: updatedUser,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // 1. API LẤY THÔNG TIN PROFILE
 router.get('/:id', async (req, res) => {
   try {

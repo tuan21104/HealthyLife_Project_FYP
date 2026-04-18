@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'shop_screen.dart';
 import 'custom_page_route.dart';
 import 'expense_screen.dart';
+import 'core/theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -150,14 +151,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 32),
                 Text(
                   'home.weekly_health'.tr(),
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: AppTypography.sectionTitle,
                 ),
                 const SizedBox(height: 16),
                 _buildCalorieChart(),
                 const SizedBox(height: 32),
                 Text(
                   'home.weekly_expense'.tr(),
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: AppTypography.sectionTitle,
                 ),
                 const SizedBox(height: 16),
                 _buildExpenseChart(),
@@ -423,22 +424,16 @@ class _HomeScreenState extends State<HomeScreen> {
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (double value, TitleMeta meta) {
-                  DateTime targetDate = DateTime.now().subtract(
-                    Duration(days: 6 - value.toInt()),
-                  );
-                  List<String> days = [
-                    'home.sun_short'.tr(),
-                    'home.mon_short'.tr(),
-                    'home.tue_short'.tr(),
-                    'home.wed_short'.tr(),
-                    'home.thu_short'.tr(),
-                    'home.fri_short'.tr(),
-                    'home.sat_short'.tr(),
-                  ];
+                  final dayIndex = value.toInt();
+                  if (dayIndex < 0 || dayIndex > 6) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final targetDate = _chartDateForIndex(dayIndex);
                   return SideTitleWidget(
                     meta: meta,
                     child: Text(
-                      days[targetDate.weekday % 7],
+                      _weekdayShortLabel(targetDate),
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   );
@@ -510,8 +505,13 @@ class _HomeScreenState extends State<HomeScreen> {
             touchTooltipData: LineTouchTooltipData(
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((spot) {
+                  final dayIndex = spot.x.toInt();
+                  final dayLabel = (dayIndex >= 0 && dayIndex <= 6)
+                      ? _weekdayShortLabel(_chartDateForIndex(dayIndex))
+                      : '';
+
                   return LineTooltipItem(
-                    _formatMoney(spot.y),
+                    '$dayLabel\n${_formatMoney(spot.y)}',
                     const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -528,19 +528,25 @@ class _HomeScreenState extends State<HomeScreen> {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                getTitlesWidget: (val, meta) => val % 3 == 0
-                    ? Text(
-                        [
-                          'home.mon_short'.tr(),
-                          'home.thu_short'.tr(),
-                          'home.sun_short'.tr(),
-                        ][(val / 3).toInt()],
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+                interval: 1,
+                getTitlesWidget: (val, meta) {
+                  final dayIndex = val.toInt();
+                  if (dayIndex < 0 || dayIndex > 6) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final dayLabel = _weekdayShortLabel(
+                    _chartDateForIndex(dayIndex),
+                  );
+
+                  return SideTitleWidget(
+                    meta: meta,
+                    child: Text(
+                      dayLabel,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  );
+                },
               ),
             ),
             leftTitles: const AxisTitles(
@@ -577,6 +583,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _formatMoney(num value) {
     return '${_vndFormat.format(value.round())} VNĐ';
+  }
+
+  DateTime _chartDateForIndex(int index) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.subtract(Duration(days: 6 - index));
+  }
+
+  String _weekdayShortLabel(DateTime date) {
+    final days = [
+      'home.sun_short'.tr(),
+      'home.mon_short'.tr(),
+      'home.tue_short'.tr(),
+      'home.wed_short'.tr(),
+      'home.thu_short'.tr(),
+      'home.fri_short'.tr(),
+      'home.sat_short'.tr(),
+    ];
+    return days[date.weekday % 7];
   }
 
   // 5. ACTION BUTTONS (Đã đổi Log Meal -> Shopping)
