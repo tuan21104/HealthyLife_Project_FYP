@@ -59,6 +59,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   int _monthlyBudget = 10000000;
   String _currentUserId = '';
   List<ExpenseModel> _expenses = [];
+  final Set<String> _processingExpenseIds = <String>{};
 
   @override
   void initState() {
@@ -105,6 +106,29 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   String _formatCurrency(num value) {
     return '${_currencyFormat.format(value)} VNĐ';
+  }
+
+  String _expenseUiKey(ExpenseModel expense) {
+    final String id = expense.id?.trim() ?? '';
+    if (id.isNotEmpty) return id;
+    return '${expense.userId}_${expense.date.millisecondsSinceEpoch}_${expense.category}_${expense.amount}';
+  }
+
+  bool _isExpenseProcessing(ExpenseModel expense) {
+    return _processingExpenseIds.contains(_expenseUiKey(expense));
+  }
+
+  void _setExpenseProcessing(ExpenseModel expense, bool isProcessing) {
+    if (!mounted) return;
+
+    final String key = _expenseUiKey(expense);
+    setState(() {
+      if (isProcessing) {
+        _processingExpenseIds.add(key);
+      } else {
+        _processingExpenseIds.remove(key);
+      }
+    });
   }
 
   String _trWithFallback(
@@ -392,11 +416,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text('common.cancel'.tr()),
+              child: Text(_trWithFallback('common.cancel', 'Hủy')),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text('common.delete'.tr()),
+              child: Text(_trWithFallback('common.delete', 'Xóa')),
             ),
           ],
         );
@@ -406,83 +430,317 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     return confirmed == true;
   }
 
-  Future<void> _handleExpenseDismiss(
-    ExpenseModel expense,
-    int fallbackIndex,
-  ) async {
-    int removeIndex = _expenses.indexWhere(
-      (ExpenseModel item) => item.id != null && item.id == expense.id,
-    );
-
-    if (removeIndex < 0 && fallbackIndex < _expenses.length) {
-      removeIndex = fallbackIndex;
-    }
-
-    if (removeIndex < 0 || removeIndex >= _expenses.length) {
+  Future<void> _deleteExpense(ExpenseModel expense) async {
+    if (_currentUserId.trim().isEmpty || expense.id == null) {
       return;
     }
 
-    final ExpenseModel removedExpense = _expenses[removeIndex];
+    if (_isExpenseProcessing(expense)) {
+      return;
+    }
 
-    setState(() {
-      _expenses.removeAt(removeIndex);
-    });
+    final bool confirmed = await _confirmDeleteExpense(expense);
+    if (!confirmed || !mounted) {
+      return;
+    }
 
-    bool shouldUndo = false;
-    final ScaffoldFeatureController<SnackBar, SnackBarClosedReason>
-    snackBarController = ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 5),
-        content: Text(
-          _trWithFallback('expense.delete_success', 'Đã xóa chi tiêu.'),
+    _setExpenseProcessing(expense, true);
+    try {
+      final Map<String, dynamic> result = await ExpenseService.deleteExpense(
+        expense.id!,
+        _currentUserId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (result['success'] == true) {
+        await _loadExpenses();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _trWithFallback('expense.delete_success', 'Đã xóa chi tiêu.'),
+            ),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _trWithFallback('expense.delete_failed', 'Xóa chi tiêu thất bại.'),
+          ),
         ),
-        action: SnackBarAction(
-          label: _trWithFallback('common.undo', 'Hoàn tác'),
-          onPressed: () {
-            shouldUndo = true;
-            setState(() {
-              final int restoreIndex = removeIndex <= _expenses.length
-                  ? removeIndex
-                  : _expenses.length;
-              _expenses.insert(restoreIndex, removedExpense);
-            });
+      );
+    } finally {
+      _setExpenseProcessing(expense, false);
+    }
+  }
+
+  Future<void> _showEditExpenseDialog(ExpenseModel expense) async {
+    if (expense.id == null || expense.id!.trim().isEmpty) {
+      return;
+    }
+
+    final TextEditingController amountController = TextEditingController(
+      text: expense.amount.toStringAsFixed(0),
+    );
+    final TextEditingController noteController = TextEditingController(
+      text: expense.note,
+    );
+
+    String selectedCategory = expense.category;
+    DateTime selectedDate = expense.date;
+    bool isSubmitting = false;
+    final String processingKey = _expenseUiKey(expense);
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              title: Text(
+                _trWithFallback('expense.edit_title', 'Sửa chi tiêu'),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: _trWithFallback(
+                          'expense.amount_label',
+                          'Số tiền',
+                        ),
+                        hintText: _trWithFallback(
+                          'expense.amount_hint',
+                          'Nhập số tiền',
+                        ),
+                        suffixText: 'VNĐ',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _categoryMeta.containsKey(selectedCategory)
+                          ? selectedCategory
+                          : 'Others',
+                      items: _categoryMeta.keys
+                          .map(
+                            (String key) => DropdownMenuItem<String>(
+                              value: key,
+                              child: Text(_translateCategory(key)),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (String? value) {
+                        if (value == null) return;
+                        setDialogState(() {
+                          selectedCategory = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        labelText: _trWithFallback(
+                          'expense.category',
+                          'Danh mục',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: _trWithFallback('expense.note', 'Ghi chú'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () async {
+                        final DateTime now = DateTime.now();
+                        final DateTime firstDate = DateTime(now.year - 5);
+                        final DateTime lastDate = DateTime(now.year + 1);
+                        final DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: firstDate,
+                          lastDate: lastDate,
+                        );
+
+                        if (pickedDate == null) return;
+
+                        setDialogState(() {
+                          selectedDate = pickedDate;
+                        });
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: _trWithFallback('expense.date', 'Ngày'),
+                          border: const OutlineInputBorder(),
+                        ),
+                        child: Text(_formatDate(selectedDate)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: Text(_trWithFallback('common.cancel', 'Hủy')),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final double? parsedAmount = double.tryParse(
+                            amountController.text.trim().replaceAll(
+                              RegExp(r'[^0-9.]'),
+                              '',
+                            ),
+                          );
+
+                          if (parsedAmount == null || parsedAmount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _trWithFallback(
+                                    'expense.invalid_amount',
+                                    'Số tiền không hợp lệ',
+                                  ),
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+
+                          if (mounted) {
+                            setState(() {
+                              _processingExpenseIds.add(processingKey);
+                            });
+                          }
+
+                          try {
+                            final Map<String, dynamic> result =
+                                await ExpenseService.updateExpense(
+                                  expenseId: expense.id!,
+                                  userId: _currentUserId,
+                                  amount: parsedAmount,
+                                  category: selectedCategory,
+                                  note: noteController.text,
+                                  date: selectedDate,
+                                );
+
+                            if (!mounted) {
+                              return;
+                            }
+
+                            if (result['success'] == true) {
+                              Navigator.of(dialogContext).pop();
+                              await _loadExpenses();
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _trWithFallback(
+                                      'expense.update_success',
+                                      'Cập nhật chi tiêu thành công!',
+                                    ),
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            setDialogState(() {
+                              isSubmitting = false;
+                            });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  result['message']?.toString() ??
+                                      _trWithFallback(
+                                        'expense.update_failed',
+                                        'Cập nhật chi tiêu thất bại.',
+                                      ),
+                                ),
+                              ),
+                            );
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _processingExpenseIds.remove(processingKey);
+                              });
+                            }
+                          }
+                        },
+                  child: Text(_trWithFallback('common.save', 'Lưu')),
+                ),
+              ],
+            );
           },
-        ),
-      ),
+        );
+      },
     );
+  }
 
-    await snackBarController.closed;
-
-    if (!mounted || shouldUndo) {
-      return;
-    }
-
-    final Map<String, dynamic> result = await ExpenseService.deleteExpense(
-      removedExpense.id!,
-      _currentUserId,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    if (result['success'] == true) {
-      return;
-    }
-
-    setState(() {
-      final int restoreIndex = removeIndex <= _expenses.length
-          ? removeIndex
-          : _expenses.length;
-      _expenses.insert(restoreIndex, removedExpense);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _trWithFallback('expense.delete_failed', 'Xóa chi tiêu thất bại.'),
-        ),
+  Future<void> _showExpenseActions(ExpenseModel expense) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (BuildContext bottomSheetContext) {
+        final bool isProcessing = _isExpenseProcessing(expense);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit_rounded),
+                title: Text(_trWithFallback('common.edit', 'Sửa')),
+                enabled: !isProcessing,
+                onTap: isProcessing
+                    ? null
+                    : () {
+                        Navigator.of(bottomSheetContext).pop();
+                        _showEditExpenseDialog(expense);
+                      },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_rounded,
+                  color: Color(0xFFE53935),
+                ),
+                title: Text(
+                  _trWithFallback('common.delete', 'Xóa'),
+                  style: const TextStyle(color: Color(0xFFE53935)),
+                ),
+                enabled: !isProcessing,
+                onTap: isProcessing
+                    ? null
+                    : () {
+                        Navigator.of(bottomSheetContext).pop();
+                        _deleteExpense(expense);
+                      },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -782,96 +1040,101 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               itemBuilder: (context, index) {
                 final expense = _expenses[index];
                 final meta = _metaForCategory(expense.category);
+                final bool isItemProcessing = _isExpenseProcessing(expense);
 
-                final String dismissKey =
-                    expense.id ??
-                    '${expense.userId}_${expense.date.millisecondsSinceEpoch}_$index';
-
-                return Dismissible(
-                  key: ValueKey<String>(dismissKey),
-                  direction: DismissDirection.endToStart,
-                  confirmDismiss: (_) => _confirmDeleteExpense(expense),
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE53935),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.delete_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7FAF8),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E9E2)),
                   ),
-                  onDismissed: (_) {
-                    _handleExpenseDismiss(expense, index);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7FAF8),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE2E9E2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: meta.color.withOpacity(0.14),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(meta.icon, color: meta.color),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: meta.color.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _translateCategory(expense.category),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        child: Icon(meta.icon, color: meta.color),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _translateCategory(expense.category),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                expense.note.isNotEmpty
-                                    ? expense.note
-                                    : 'Không có ghi chú',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.black54,
-                                ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              expense.note.isNotEmpty
+                                  ? expense.note
+                                  : _trWithFallback(
+                                      'expense.no_note',
+                                      'Không có ghi chú',
+                                    ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.black54,
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _formatDate(expense.date),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black45,
-                                ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _formatDate(expense.date),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black45,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _formatCurrency(expense.amount),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatCurrency(expense.amount),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          IconButton(
+                            onPressed: isItemProcessing
+                                ? null
+                                : () => _showExpenseActions(expense),
+                            icon: isItemProcessing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.more_vert_rounded),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 28,
+                              minHeight: 28,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            splashRadius: 18,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 );
               },
@@ -890,19 +1153,29 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE2E9E2)),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.receipt_long_rounded, size: 42, color: Colors.black38),
-          SizedBox(height: 10),
-          Text(
-            'Chưa có khoản chi tiêu nào',
-            style: TextStyle(fontWeight: FontWeight.w700),
+          const Icon(
+            Icons.receipt_long_rounded,
+            size: 42,
+            color: Colors.black38,
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 10),
           Text(
-            'Bấm nút thêm chi tiêu để tạo dữ liệu đầu tiên.',
+            _trWithFallback(
+              'expense.empty_title',
+              'Chưa có khoản chi tiêu nào',
+            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _trWithFallback(
+              'expense.empty_subtitle',
+              'Bấm nút thêm chi tiêu để tạo dữ liệu đầu tiên.',
+            ),
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black54),
+            style: const TextStyle(color: Colors.black54),
           ),
         ],
       ),

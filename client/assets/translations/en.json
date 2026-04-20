@@ -147,7 +147,15 @@
     "table_carb": "Carb",
     "table_protein": "Protein",
     "table_fat": "Fat",
-    "no_data": "No data"
+    "no_data": "No data",
+    "edit_item_title": "Edit: {name}",
+    "edit_amount_label": "Enter new amount",
+    "edit_save_success": "Record updated.",
+    "edit_save_failed": "Failed to update record.",
+    "delete_item_title": "Delete record",
+    "delete_item_confirm": "Are you sure you want to delete {name} from {meal}?",
+    "delete_success": "Record deleted.",
+    "delete_failed": "Failed to delete record."
   },
   "expense": {
     "title": "Expense Management",
@@ -176,11 +184,19 @@
     "pick_date": "Pick date",
     "quick_add_subtitle": "Quickly log an expense to keep your budget on track",
     "select_category": "Please select a category",
+    "edit_title": "Edit expense",
+    "amount_label": "Amount",
+    "amount_hint": "Enter amount",
+    "no_note": "No note",
     "delete_title": "Delete expense",
     "delete_confirm": "Are you sure you want to delete the {category} transaction?",
     "delete_invalid": "This expense record cannot be deleted.",
     "delete_success": "Expense deleted.",
-    "delete_failed": "Failed to delete expense."
+    "delete_failed": "Failed to delete expense.",
+    "update_success": "Expense updated successfully!",
+    "update_failed": "Failed to update expense.",
+    "empty_title": "No expenses yet",
+    "empty_subtitle": "Tap the add expense button to create your first record."
   },
   "ai_chat": {
     "title": "Ask me",

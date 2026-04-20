@@ -7,6 +7,7 @@ const Chat = require('../models/Chat');
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const MAX_HISTORY_MESSAGES = 15;
 
 function getVietnamDateString(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -76,6 +77,19 @@ function sumBurnedCalories(exerciseEntries) {
   }, 0);
 }
 
+function normalizeHistoryMessages(messages) {
+  if (!Array.isArray(messages)) {
+    return [];
+  }
+
+  return messages
+    .map((message) => ({
+      role: String(message?.role || '').trim(),
+      text: String(message?.text || '').trim(),
+    }))
+    .filter((message) => ['user', 'model'].includes(message.role) && message.text.length > 0);
+}
+
 function buildContextString({ profile, diary, monthlySpent, products }) {
   const name = asReadableValue(profile?.name, 'Người dùng');
   const age = asReadableValue(profile?.age, 'chưa cập nhật');
@@ -99,46 +113,50 @@ function buildContextString({ profile, diary, monthlySpent, products }) {
   const todayBurned = sumBurnedCalories(diary?.exercise);
   const targetCalo = Number(diary?.targetCalo || profile?.targetCalo || 0);
 
-  const productLines = Array.isArray(products) && products.length > 0
-    ? products.map((product, index) => {
-      const priceVnd = formatMoney(product?.priceVND || 0);
-      const calories = Number(product?.calories || product?.priceCalo || 0);
-      const category = asReadableValue(product?.category, 'food');
-      const description = asReadableValue(product?.description, 'Không có mô tả');
+  const productHighlights = Array.isArray(products)
+    ? products.map((product) => ({
+      n: asReadableValue(product?.name, 'Sản phẩm'),
+      p: Number(product?.priceVND || 0),
+      kcal: Number(product?.calories || product?.priceCalo || 0),
+      c: asReadableValue(product?.category, 'food'),
+    }))
+    : [];
 
-      return `${index + 1}. ${asReadableValue(product?.name, 'Sản phẩm')} | ${priceVnd} | ${calories} kcal | ${category} | ${description}`;
-    }).join('\n')
-    : 'Chưa có sản phẩm tiêu biểu trong shop.';
+  const compactContext = {
+    profile: {
+      name,
+      age,
+      gender,
+      heightCm: height,
+      weightKg: weight,
+      goal,
+      monthlyBudgetVnd: Number(monthlyBudget || 0),
+      monthlyBudgetText: budgetText,
+    },
+    today: {
+      date: todayDate,
+      waterMl: Number.isFinite(waterIntake) ? waterIntake : 0,
+      intakeKcal: todayCalo,
+      burnedKcal: todayBurned,
+      targetKcal: targetCalo > 0 ? targetCalo : null,
+    },
+    finance: {
+      spentThisMonthVnd: Number(monthlySpent || 0),
+      remainingBudgetVnd: Math.max(0, Number(monthlyBudget || 0) - Number(monthlySpent || 0)),
+      spentText,
+      remainingText,
+    },
+    shopHighlights: productHighlights,
+  };
 
-  return [
-    'Thong tin ca nhan:',
-    `- Ten: ${name}`,
-    `- Tuoi: ${age}`,
-    `- Gioi tinh: ${gender}`,
-    `- Chieu cao: ${height} cm`,
-    `- Can nang: ${weight} kg`,
-    `- Muc tieu: ${goal}`,
-    `- Ngan sach thang: ${budgetText}`,
-    '',
-    `Nhat ky hom nay (${todayDate}):`,
-    `- Nuoc da uong: ${Number.isFinite(waterIntake) ? waterIntake : 0} ml`,
-    `- Tong calo da nap: ${todayCalo} kcal`,
-    `- Tong calo da dot: ${todayBurned} kcal`,
-    `- Muc tieu calo ngay: ${targetCalo > 0 ? `${targetCalo} kcal` : 'chua cap nhat'}`,
-    '',
-    'Chi tieu thang hien tai:',
-    `- Tong da chi: ${spentText}`,
-    `- Ngan sach con lai: ${remainingText}`,
-    '',
-    'San pham tieu bieu trong shop:',
-    productLines,
-  ].join('\n');
+  return JSON.stringify(compactContext);
 }
 
 function buildSystemPrompt(contextString) {
   return [
     'Bạn là chuyên gia sức khỏe cá nhân của người dùng.',
-    `Dưới đây là thông tin hiện tại của họ:\n${contextString}`,
+    'Dữ liệu người dùng hiện tại ở định dạng JSON (ngắn gọn):',
+    contextString,
     '',
     'Quy tắc bắt buộc:',
     '- Luôn trả lời thân thiện, ngắn gọn, cá nhân hóa và gọi tên người dùng khi phù hợp.',
@@ -147,6 +165,31 @@ function buildSystemPrompt(contextString) {
     '- Nếu câu hỏi ngoài sức khỏe, y tế, dinh dưỡng hoặc tập luyện, BẮT BUỘC từ chối cực kỳ ngắn gọn trong tối đa 1-2 câu, dưới 40 chữ. Không giải thích dài. Chỉ xin lỗi vì ngoài chuyên môn và hỏi họ có cần tư vấn sức khỏe không.',
     '- Không tự bịa số liệu. Nếu một trường dữ liệu còn trống, hãy suy luận thận trọng từ ngữ cảnh hoặc nói rằng dữ liệu chưa được cập nhật.',
   ].join('\n');
+}
+
+function buildConversationContents({ historyMessages, currentMessage, resolvedImagePart }) {
+  const sanitizedHistory = normalizeHistoryMessages(historyMessages);
+  const maxHistoryBeforeCurrent = Math.max(0, MAX_HISTORY_MESSAGES - 1);
+  const recentHistory = sanitizedHistory.slice(-maxHistoryBeforeCurrent);
+
+  const historyContents = recentHistory.map((message) => ({
+    role: message.role,
+    parts: [{ text: message.text }],
+  }));
+
+  const currentParts = [
+    {
+      text: currentMessage || 'Please analyze the attached image and provide personalized health advice based on the current user context.',
+    },
+    ...(resolvedImagePart ? [resolvedImagePart] : []),
+  ];
+
+  historyContents.push({
+    role: 'user',
+    parts: currentParts,
+  });
+
+  return historyContents;
 }
 
 function buildImagePart(imagePart) {
@@ -309,6 +352,8 @@ async function generatePersonalizedReply({ userId, message, imagePart }) {
   }
 
   const { profile, diary, monthlySpent, products } = await fetchPersonalizedContext(trimmedUserId);
+  const existingChat = await Chat.findOne({ userId: trimmedUserId }).select('messages').lean();
+  const historyMessages = Array.isArray(existingChat?.messages) ? existingChat.messages : [];
   const contextString = buildContextString({ profile, diary, monthlySpent, products });
   const systemPrompt = buildSystemPrompt(contextString);
   const resolvedImagePart = buildImagePart(imagePart);
@@ -324,17 +369,11 @@ async function generatePersonalizedReply({ userId, message, imagePart }) {
         },
       ],
     },
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: trimmedMessage || 'Please analyze the attached image and provide personalized health advice based on the current user context.',
-          },
-          ...(resolvedImagePart ? [resolvedImagePart] : []),
-        ],
-      },
-    ],
+    contents: buildConversationContents({
+      historyMessages,
+      currentMessage: trimmedMessage,
+      resolvedImagePart,
+    }),
   };
 
   const response = await fetch(

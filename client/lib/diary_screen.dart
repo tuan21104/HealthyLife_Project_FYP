@@ -47,6 +47,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   List<Map<String, dynamic>> _lunchFoods = [];
   List<Map<String, dynamic>> _snackFoods = [];
   List<Map<String, dynamic>> _dinnerFoods = [];
+  final Set<String> _processingDiaryItemKeys = <String>{};
 
   @override
   void initState() {
@@ -288,32 +289,201 @@ class _DiaryScreenState extends State<DiaryScreen> {
     }
   }
 
-  String _trSafe(String key, String fallback) {
-    final translated = key.tr();
-    return translated == key ? fallback : translated;
+  String _trSafe(
+    String key,
+    String fallback, {
+    Map<String, String>? namedArgs,
+  }) {
+    final translated = key.tr(namedArgs: namedArgs ?? <String, String>{});
+    if (translated != key) return translated;
+
+    String resolvedFallback = fallback;
+    if (namedArgs != null) {
+      namedArgs.forEach((String name, String value) {
+        resolvedFallback = resolvedFallback.replaceAll('{$name}', value);
+      });
+    }
+    return resolvedFallback;
   }
 
-  void _deleteFood(String mealType, int index) {
+  String _diaryItemKey(String mealType, int index, Map<String, dynamic> food) {
+    final String name = (food['name'] ?? '').toString();
+    final String amount = (food['amount'] ?? '').toString();
+    return '$mealType::$index::$name::$amount';
+  }
+
+  bool _isDiaryItemProcessing(String key) {
+    return _processingDiaryItemKeys.contains(key);
+  }
+
+  void _setDiaryItemProcessing(String key, bool isProcessing) {
+    if (!mounted) return;
+
     setState(() {
-      if (mealType == "Breakfast")
-        _breakfastFoods.removeAt(index);
-      else if (mealType == "Lunch")
-        _lunchFoods.removeAt(index);
-      else if (mealType == "Snack")
-        _snackFoods.removeAt(index);
-      else if (mealType == "Dinner")
-        _dinnerFoods.removeAt(index);
-      else if (mealType == "Exercise")
-        _exerciseList.removeAt(index);
+      if (isProcessing) {
+        _processingDiaryItemKeys.add(key);
+      } else {
+        _processingDiaryItemKeys.remove(key);
+      }
     });
-    _saveDailyData();
+  }
+
+  Future<bool> _deleteFood(String mealType, int index) async {
+    bool deleted = false;
+    setState(() {
+      if (mealType == "Breakfast" && index < _breakfastFoods.length) {
+        _breakfastFoods.removeAt(index);
+        deleted = true;
+      } else if (mealType == "Lunch" && index < _lunchFoods.length) {
+        _lunchFoods.removeAt(index);
+        deleted = true;
+      } else if (mealType == "Snack" && index < _snackFoods.length) {
+        _snackFoods.removeAt(index);
+        deleted = true;
+      } else if (mealType == "Dinner" && index < _dinnerFoods.length) {
+        _dinnerFoods.removeAt(index);
+        deleted = true;
+      } else if (mealType == "Exercise" && index < _exerciseList.length) {
+        _exerciseList.removeAt(index);
+        deleted = true;
+      }
+    });
+
+    if (!deleted) {
+      return false;
+    }
+
+    return _saveDailyData();
+  }
+
+  Future<bool> _confirmDeleteFood(String mealType, String foodName) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(_trSafe('diary.delete_item_title', 'Xóa bản ghi')),
+          content: Text(
+            _trSafe(
+              'diary.delete_item_confirm',
+              'Bạn có chắc chắn muốn xóa {name} khỏi mục {meal}?',
+              namedArgs: <String, String>{
+                'name': foodName,
+                'meal': _mealLabel(mealType),
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(_trSafe('common.cancel', 'Hủy')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(
+                _trSafe('common.delete', 'Xóa'),
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
+  Future<void> _showFoodActions(
+    String mealType,
+    int index,
+    Map<String, dynamic> food,
+  ) async {
+    final String itemKey = _diaryItemKey(mealType, index, food);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext bottomSheetContext) {
+        final bool isProcessing = _isDiaryItemProcessing(itemKey);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit_rounded),
+                title: Text(_trSafe('common.edit', 'Sửa')),
+                enabled: !isProcessing,
+                onTap: isProcessing
+                    ? null
+                    : () {
+                        Navigator.of(bottomSheetContext).pop();
+                        _showEditFoodDialog(
+                          mealType,
+                          index,
+                          food,
+                          itemKey: itemKey,
+                        );
+                      },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_rounded, color: Colors.red),
+                title: Text(
+                  _trSafe('common.delete', 'Xóa'),
+                  style: const TextStyle(color: Colors.red),
+                ),
+                enabled: !isProcessing,
+                onTap: isProcessing
+                    ? null
+                    : () async {
+                        Navigator.of(bottomSheetContext).pop();
+                        final bool confirmed = await _confirmDeleteFood(
+                          mealType,
+                          food['name']?.toString() ?? '-',
+                        );
+                        if (!confirmed) return;
+
+                        _setDiaryItemProcessing(itemKey, true);
+                        try {
+                          final bool synced = await _deleteFood(
+                            mealType,
+                            index,
+                          );
+
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                synced
+                                    ? _trSafe(
+                                        'diary.delete_success',
+                                        'Đã xóa bản ghi.',
+                                      )
+                                    : _trSafe(
+                                        'diary.delete_failed',
+                                        'Xóa bản ghi thất bại.',
+                                      ),
+                              ),
+                            ),
+                          );
+                        } finally {
+                          _setDiaryItemProcessing(itemKey, false);
+                        }
+                      },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showEditFoodDialog(
     String mealType,
     int index,
-    Map<String, dynamic> food,
-  ) {
+    Map<String, dynamic> food, {
+    required String itemKey,
+  }) {
     List<String> amountParts = food['amount'].toString().split(" ");
     String oldAmountStr = amountParts.isNotEmpty ? amountParts[0] : "100";
     String unit = amountParts.length > 1 ? amountParts[1] : "Gr";
@@ -324,81 +494,127 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
     ModalEffects.showScaleFadeDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            "Sửa: ${food['name']}",
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: "Nhập định lượng mới",
-              suffixText: unit,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[400],
-                elevation: 0,
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                _deleteFood(mealType, index);
-              },
-              child: const Text("Xóa", style: TextStyle(color: Colors.white)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _greenColor,
-                elevation: 0,
-              ),
-              onPressed: () {
-                double oldVal = double.tryParse(oldAmountStr) ?? 1.0;
-                double newVal = double.tryParse(controller.text) ?? oldVal;
+      builder: (dialogContext) {
+        bool isSubmitting = false;
 
-                if (newVal > 0 && oldVal > 0) {
-                  double ratio = newVal / oldVal;
-                  setState(() {
-                    food['amount'] = "${newVal.toStringAsFixed(0)} $unit";
-                    if (mealType == "Exercise") {
-                      food['burnedCalories'] =
-                          (food['burnedCalories'] ?? 0) * ratio;
-                    } else {
-                      food['kcal'] = (food['kcal'] ?? 0) * ratio;
-                      food['carb'] = (food['carb'] ?? 0) * ratio;
-                      food['protein'] = (food['protein'] ?? 0) * ratio;
-                      food['fat'] = (food['fat'] ?? 0) * ratio;
-                      food['fiber'] = (food['fiber'] ?? 0) * ratio;
-                    }
-                  });
-                  _saveDailyData();
-                }
-                Navigator.pop(context);
-              },
-              child: const Text(
-                "Lưu",
-                style: TextStyle(
-                  color: Colors.white,
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                _trSafe(
+                  'diary.edit_item_title',
+                  'Sửa: {name}',
+                  namedArgs: <String, String>{
+                    'name': food['name']?.toString() ?? '-',
+                  },
+                ),
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              content: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: _trSafe(
+                    'diary.edit_amount_label',
+                    'Nhập định lượng mới',
+                  ),
+                  suffixText: unit,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    _trSafe('common.cancel', 'Hủy'),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _greenColor,
+                    elevation: 0,
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          double oldVal = double.tryParse(oldAmountStr) ?? 1.0;
+                          double newVal =
+                              double.tryParse(controller.text) ?? oldVal;
+
+                          if (!(newVal > 0 && oldVal > 0)) {
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+                          _setDiaryItemProcessing(itemKey, true);
+
+                          try {
+                            double ratio = newVal / oldVal;
+                            setState(() {
+                              food['amount'] =
+                                  "${newVal.toStringAsFixed(0)} $unit";
+                              if (mealType == "Exercise") {
+                                food['burnedCalories'] =
+                                    (food['burnedCalories'] ?? 0) * ratio;
+                              } else {
+                                food['kcal'] = (food['kcal'] ?? 0) * ratio;
+                                food['carb'] = (food['carb'] ?? 0) * ratio;
+                                food['protein'] =
+                                    (food['protein'] ?? 0) * ratio;
+                                food['fat'] = (food['fat'] ?? 0) * ratio;
+                                food['fiber'] = (food['fiber'] ?? 0) * ratio;
+                              }
+                            });
+
+                            final bool synced = await _saveDailyData();
+                            if (!mounted) return;
+
+                            Navigator.pop(dialogContext);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  synced
+                                      ? _trSafe(
+                                          'diary.edit_save_success',
+                                          'Đã cập nhật bản ghi.',
+                                        )
+                                      : _trSafe(
+                                          'diary.edit_save_failed',
+                                          'Cập nhật bản ghi thất bại.',
+                                        ),
+                                ),
+                              ),
+                            );
+                          } finally {
+                            _setDiaryItemProcessing(itemKey, false);
+                          }
+                        },
+                  child: Text(
+                    _trSafe('common.save', 'Lưu'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -1261,6 +1477,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 28),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1276,86 +1493,95 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   ...foods.asMap().entries.map((entry) {
                     int index = entry.key;
                     Map<String, dynamic> food = entry.value;
+                    final String itemKey = _diaryItemKey(title, index, food);
+                    final bool isItemProcessing = _isDiaryItemProcessing(
+                      itemKey,
+                    );
 
-                    return Dismissible(
-                      key: UniqueKey(),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (direction) => _deleteFood(title, index),
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 16),
-                        color: Colors.red[400],
-                        child: const Icon(
-                          Icons.delete,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      child: GestureDetector(
-                        onTap: () => _showEditFoodDialog(title, index, food),
-                        child: Container(
-                          color: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 6.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  food['name'] ?? '',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF5A9B58),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                    return Container(
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 6.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              food['name'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF5A9B58),
                               ),
-                              Expanded(
-                                child: Text(
-                                  food['amount']?.toString() ?? '-',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  (food['kcal'] ??
-                                          food['burnedCalories'] ??
-                                          food['calories'] ??
-                                          0.0)
-                                      .toDouble()
-                                      .toStringAsFixed(1),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  (food['carb'] ?? food['carbs'] ?? 0.0)
-                                      .toDouble()
-                                      .toStringAsFixed(1),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  (food['protein'] ?? 0.0)
-                                      .toDouble()
-                                      .toStringAsFixed(1),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  (food['fat'] ?? 0.0)
-                                      .toDouble()
-                                      .toStringAsFixed(1),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
+                          Expanded(
+                            child: Text(
+                              food['amount']?.toString() ?? '-',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              (food['kcal'] ??
+                                      food['burnedCalories'] ??
+                                      food['calories'] ??
+                                      0.0)
+                                  .toDouble()
+                                  .toStringAsFixed(1),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              (food['carb'] ?? food['carbs'] ?? 0.0)
+                                  .toDouble()
+                                  .toStringAsFixed(1),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              (food['protein'] ?? 0.0)
+                                  .toDouble()
+                                  .toStringAsFixed(1),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              (food['fat'] ?? 0.0).toDouble().toStringAsFixed(
+                                1,
+                              ),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 28,
+                            child: IconButton(
+                              onPressed: isItemProcessing
+                                  ? null
+                                  : () => _showFoodActions(title, index, food),
+                              icon: isItemProcessing
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.more_vert_rounded,
+                                      size: 18,
+                                    ),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              splashRadius: 18,
+                            ),
+                          ),
+                        ],
                       ),
                     ).withStagger(index, beginY: 0.12);
                   }),

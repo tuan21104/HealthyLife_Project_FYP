@@ -129,6 +129,69 @@ router.post('/add', async (req, res) => {
   }
 });
 
+// PUT /api/expenses/:id - Cap nhat 1 ban ghi chi tieu cua dung user
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      userId: bodyUserId,
+      amount,
+      category,
+      note,
+      date,
+    } = req.body || {};
+    const userId = (req.query.userId || bodyUserId || '').toString().trim();
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'expenseId không hợp lệ' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'userId không hợp lệ' });
+    }
+
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'amount phải là số lớn hơn 0' });
+    }
+
+    if (!category || typeof category !== 'string' || !category.trim()) {
+      return res.status(400).json({ success: false, message: 'category là bắt buộc' });
+    }
+
+    const expenseDate = date ? new Date(date) : new Date();
+    if (Number.isNaN(expenseDate.getTime())) {
+      return res.status(400).json({ success: false, message: 'date không hợp lệ' });
+    }
+
+    const updatedExpense = await Expense.findOneAndUpdate(
+      { _id: id, userId },
+      {
+        amount: parsedAmount,
+        category: category.trim(),
+        note: typeof note === 'string' ? note.trim() : '',
+        date: expenseDate,
+      },
+      { new: true }
+    );
+
+    if (!updatedExpense) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy chi tiêu hoặc bạn không có quyền sửa',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật chi tiêu thành công',
+      expense: updatedExpense,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // DELETE /api/expenses/:id?userId=... - Xoa 1 ban ghi chi tieu cua dung user
 router.delete('/:id', async (req, res) => {
   try {

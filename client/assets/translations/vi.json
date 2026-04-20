@@ -147,7 +147,15 @@
     "table_carb": "Carb",
     "table_protein": "Protein",
     "table_fat": "Fat",
-    "no_data": "Chưa có dữ liệu"
+    "no_data": "Chưa có dữ liệu",
+    "edit_item_title": "Sửa: {name}",
+    "edit_amount_label": "Nhập định lượng mới",
+    "edit_save_success": "Đã cập nhật bản ghi.",
+    "edit_save_failed": "Cập nhật bản ghi thất bại.",
+    "delete_item_title": "Xóa bản ghi",
+    "delete_item_confirm": "Bạn có chắc chắn muốn xóa {name} khỏi mục {meal}?",
+    "delete_success": "Đã xóa bản ghi.",
+    "delete_failed": "Xóa bản ghi thất bại."
   },
   "expense": {
     "title": "Quản lý chi tiêu",
@@ -176,11 +184,19 @@
     "pick_date": "Chọn ngày",
     "quick_add_subtitle": "Ghi nhanh một khoản chi để theo dõi ngân sách tốt hơn",
     "select_category": "Vui lòng chọn danh mục",
+    "edit_title": "Sửa chi tiêu",
+    "amount_label": "Số tiền",
+    "amount_hint": "Nhập số tiền",
+    "no_note": "Không có ghi chú",
     "delete_title": "Xóa chi tiêu",
     "delete_confirm": "Bạn có chắc chắn muốn xóa giao dịch {category}?",
     "delete_invalid": "Không thể xóa bản ghi này.",
     "delete_success": "Đã xóa chi tiêu.",
-    "delete_failed": "Xóa chi tiêu thất bại."
+    "delete_failed": "Xóa chi tiêu thất bại.",
+    "update_success": "Cập nhật chi tiêu thành công!",
+    "update_failed": "Cập nhật chi tiêu thất bại.",
+    "empty_title": "Chưa có khoản chi tiêu nào",
+    "empty_subtitle": "Bấm nút thêm chi tiêu để tạo dữ liệu đầu tiên."
   },
   "ai_chat": {
     "title": "Hỏi AI",

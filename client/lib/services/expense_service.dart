@@ -240,4 +240,63 @@ class ExpenseService {
       return {'success': false, 'message': 'Không thể kết nối tới Server'};
     }
   }
+
+  static Future<Map<String, dynamic>> updateExpense({
+    required String expenseId,
+    required String userId,
+    required double amount,
+    required String category,
+    required String note,
+    required DateTime date,
+  }) async {
+    final String trimmedExpenseId = expenseId.trim();
+    final String trimmedUserId = userId.trim();
+    final String trimmedCategory = category.trim();
+
+    if (trimmedExpenseId.isEmpty || trimmedUserId.isEmpty) {
+      return {'success': false, 'message': 'Dữ liệu cập nhật không hợp lệ'};
+    }
+
+    if (amount <= 0 || trimmedCategory.isEmpty) {
+      return {'success': false, 'message': 'Dữ liệu cập nhật không hợp lệ'};
+    }
+
+    try {
+      final Uri uri = Uri.parse('$baseUrl/api/expenses/$trimmedExpenseId');
+
+      final http.Response response = await http
+          .put(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'userId': trimmedUserId,
+              'amount': amount,
+              'category': trimmedCategory,
+              'note': note.trim(),
+              'date': date.toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      final dynamic decoded = jsonDecode(response.body);
+      final String message =
+          decoded is Map<String, dynamic> && decoded['message'] != null
+          ? decoded['message'].toString()
+          : 'Vui lòng thử lại!';
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': message,
+          'expense': decoded is Map<String, dynamic>
+              ? decoded['expense']
+              : null,
+        };
+      }
+
+      return {'success': false, 'message': message};
+    } catch (_) {
+      return {'success': false, 'message': 'Không thể kết nối tới Server'};
+    }
+  }
 }

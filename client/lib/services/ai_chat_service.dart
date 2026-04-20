@@ -297,42 +297,4 @@ class AiChatService {
       };
     }
   }
-
-  Future<void> saveMessageToDb(String userId, String role, String text) async {
-    final String trimmedUserId = userId.trim();
-    final String trimmedRole = role.trim();
-    final String trimmedText = text.trim();
-
-    if (trimmedUserId.isEmpty || trimmedText.isEmpty) {
-      return;
-    }
-
-    if (trimmedRole != 'user' && trimmedRole != 'model') {
-      return;
-    }
-
-    try {
-      final Uri uri = Uri.parse('$_backendBaseUrl/api/chat/save');
-
-      final http.Response response = await http
-          .post(
-            uri,
-            headers: <String, String>{'Content-Type': 'application/json'},
-            body: jsonEncode(<String, String>{
-              'userId': trimmedUserId,
-              'role': trimmedRole,
-              'text': trimmedText,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        print(
-          'saveMessageToDb error: HTTP ${response.statusCode}, body=${response.body}',
-        );
-      }
-    } catch (e) {
-      print('saveMessageToDb exception: $e');
-    }
-  }
 }
