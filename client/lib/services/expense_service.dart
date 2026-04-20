@@ -204,4 +204,40 @@ class ExpenseService {
       };
     }
   }
+
+  static Future<Map<String, dynamic>> deleteExpense(
+    String expenseId,
+    String userId,
+  ) async {
+    final String trimmedExpenseId = expenseId.trim();
+    final String trimmedUserId = userId.trim();
+
+    if (trimmedExpenseId.isEmpty || trimmedUserId.isEmpty) {
+      return {'success': false, 'message': 'Dữ liệu xoá chi tiêu không hợp lệ'};
+    }
+
+    try {
+      final Uri uri = Uri.parse(
+        '$baseUrl/api/expenses/$trimmedExpenseId?userId=$trimmedUserId',
+      );
+
+      final http.Response response = await http
+          .delete(uri, headers: {'Content-Type': 'application/json'})
+          .timeout(const Duration(seconds: 10));
+
+      final dynamic decoded = jsonDecode(response.body);
+      final String message =
+          decoded is Map<String, dynamic> && decoded['message'] != null
+          ? decoded['message'].toString()
+          : 'Vui lòng thử lại!';
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': message};
+      }
+
+      return {'success': false, 'message': message};
+    } catch (_) {
+      return {'success': false, 'message': 'Không thể kết nối tới Server'};
+    }
+  }
 }

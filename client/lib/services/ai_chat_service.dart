@@ -255,6 +255,49 @@ class AiChatService {
     }
   }
 
+  Future<Map<String, dynamic>> clearChatHistory(String userId) async {
+    final String trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) {
+      return <String, dynamic>{
+        'success': false,
+        'message': 'Không tìm thấy người dùng để xoá lịch sử.',
+      };
+    }
+
+    try {
+      final Uri uri = Uri.parse(
+        '$_backendBaseUrl/api/chat/history?userId=${Uri.encodeComponent(trimmedUserId)}',
+      );
+
+      final http.Response response = await http
+          .delete(
+            uri,
+            headers: <String, String>{'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final dynamic decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        return <String, dynamic>{
+          'success': response.statusCode >= 200 && response.statusCode < 300,
+          'message': (decoded['message'] ?? 'Vui lòng thử lại.').toString(),
+        };
+      }
+
+      return <String, dynamic>{
+        'success': response.statusCode >= 200 && response.statusCode < 300,
+        'message': response.statusCode >= 200 && response.statusCode < 300
+            ? 'Đã xoá lịch sử trò chuyện.'
+            : 'Xoá lịch sử thất bại.',
+      };
+    } catch (_) {
+      return <String, dynamic>{
+        'success': false,
+        'message': 'Không thể kết nối tới server.',
+      };
+    }
+  }
+
   Future<void> saveMessageToDb(String userId, String role, String text) async {
     final String trimmedUserId = userId.trim();
     final String trimmedRole = role.trim();

@@ -129,4 +129,40 @@ router.post('/add', async (req, res) => {
   }
 });
 
+// DELETE /api/expenses/:id?userId=... - Xoa 1 ban ghi chi tieu cua dung user
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = (req.query.userId || req.body?.userId || '').toString().trim();
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'expenseId không hợp lệ' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'userId không hợp lệ' });
+    }
+
+    const deletedExpense = await Expense.findOneAndDelete({
+      _id: id,
+      userId,
+    });
+
+    if (!deletedExpense) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy chi tiêu hoặc bạn không có quyền xoá',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Xoá chi tiêu thành công',
+      expense: deletedExpense,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

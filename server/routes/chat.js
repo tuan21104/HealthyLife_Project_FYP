@@ -105,4 +105,35 @@ router.post('/message', async (req, res) => {
   }
 });
 
+// DELETE /api/chat/history - Xoa toan bo lich su tro chuyen theo userId
+router.delete('/history', async (req, res) => {
+  try {
+    const userId = (req.body?.userId || req.query.userId || '').toString().trim();
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'userId không hợp lệ' });
+    }
+
+    const chat = await Chat.findOneAndUpdate(
+      { userId },
+      { $set: { messages: [] } },
+      { new: true }
+    );
+
+    if (!chat) {
+      return res.status(200).json({
+        success: true,
+        message: 'Không có lịch sử trò chuyện để xoá',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã xoá toàn bộ lịch sử trò chuyện',
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

@@ -495,6 +495,75 @@ class _AskMeScreenState extends State<AskMeScreen> {
     await doneCompleter.future;
   }
 
+  Future<void> _confirmClearChatHistory() async {
+    if (_isAiTyping || _isLoadingHistory) {
+      return;
+    }
+
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('ai_chat.clear_history_title'.tr()),
+          content: Text('ai_chat.clear_history_confirm'.tr()),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text('common.cancel'.tr()),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text('common.ok'.tr()),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true || !mounted) {
+      return;
+    }
+
+    final String currentUserId = (_userId ?? '').trim();
+    if (currentUserId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('auth.relogin_required'.tr())));
+      return;
+    }
+
+    await _aiStreamSubscription?.cancel();
+
+    final Map<String, dynamic> result = await _aiChatService.clearChatHistory(
+      currentUserId,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result['success'] == true) {
+      setState(() {
+        _messages.clear();
+        _dismissQuickPrompts = false;
+        _isAiTyping = false;
+        _selectedImage = null;
+        _messageController.clear();
+      });
+      _scrollToBottom();
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result['success'] == true
+              ? 'ai_chat.clear_history_success'.tr()
+              : 'ai_chat.clear_history_failed'.tr(),
+        ),
+      ),
+    );
+  }
+
   String _currentTimeLabel() {
     final DateTime now = DateTime.now();
     final String hour = now.hour.toString().padLeft(2, '0');
@@ -546,6 +615,13 @@ class _AskMeScreenState extends State<AskMeScreen> {
             fontWeight: FontWeight.w400,
           ),
         ),
+        actions: <Widget>[
+          IconButton(
+            onPressed: _confirmClearChatHistory,
+            icon: const Icon(Icons.delete_outline, color: Colors.black87),
+            tooltip: 'ai_chat.clear_history_tooltip'.tr(),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,

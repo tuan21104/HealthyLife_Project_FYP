@@ -24,6 +24,7 @@
     "success": "Success",
     "warning": "Warning",
     "confirm": "Confirm",
+    "undo": "Undo",
     "retry": "Retry",
     "select": "Select"
   },
@@ -174,13 +175,23 @@
     "pick_category_subtitle": "Pick a category that matches this transaction",
     "pick_date": "Pick date",
     "quick_add_subtitle": "Quickly log an expense to keep your budget on track",
-    "select_category": "Please select a category"
+    "select_category": "Please select a category",
+    "delete_title": "Delete expense",
+    "delete_confirm": "Are you sure you want to delete the {category} transaction?",
+    "delete_invalid": "This expense record cannot be deleted.",
+    "delete_success": "Expense deleted.",
+    "delete_failed": "Failed to delete expense."
   },
   "ai_chat": {
     "title": "Ask me",
     "message": "Message",
     "processing": "Processing...",
-    "is_typing": "Healthy life AI is typing..."
+    "is_typing": "Healthy life AI is typing...",
+    "clear_history_title": "Clear chat history",
+    "clear_history_confirm": "Are you sure you want to clear the entire conversation history?",
+    "clear_history_tooltip": "Clear chat history",
+    "clear_history_success": "Conversation history cleared.",
+    "clear_history_failed": "Failed to clear conversation history."
   },
   "profile": {
     "title": "Profile",

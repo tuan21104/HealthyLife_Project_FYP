@@ -107,6 +107,39 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     return '${_currencyFormat.format(value)} VNĐ';
   }
 
+  String _trWithFallback(
+    String key,
+    String fallback, {
+    Map<String, String>? namedArgs,
+  }) {
+    final String translated = key.tr(
+      namedArgs: namedArgs ?? <String, String>{},
+    );
+    if (translated != key) {
+      return translated;
+    }
+
+    String resolvedFallback = fallback;
+    if (namedArgs != null) {
+      namedArgs.forEach((String name, String value) {
+        resolvedFallback = resolvedFallback.replaceAll('{$name}', value);
+      });
+    }
+    return resolvedFallback;
+  }
+
+  String formatCompactCurrency(double amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(2)} Tr';
+    }
+
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)} K';
+    }
+
+    return amount.toStringAsFixed(0);
+  }
+
   double get _totalExpense =>
       _expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
 
@@ -327,6 +360,132 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     }
   }
 
+  Future<bool> _confirmDeleteExpense(ExpenseModel expense) async {
+    if (expense.id == null || expense.id!.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _trWithFallback(
+              'expense.delete_invalid',
+              'Không thể xóa bản ghi này.',
+            ),
+          ),
+        ),
+      );
+      return false;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(_trWithFallback('expense.delete_title', 'Xóa chi tiêu')),
+          content: Text(
+            _trWithFallback(
+              'expense.delete_confirm',
+              'Bạn có chắc chắn muốn xóa giao dịch {category}?',
+              namedArgs: <String, String>{
+                'category': _translateCategory(expense.category),
+              },
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text('common.cancel'.tr()),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text('common.delete'.tr()),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
+  Future<void> _handleExpenseDismiss(
+    ExpenseModel expense,
+    int fallbackIndex,
+  ) async {
+    int removeIndex = _expenses.indexWhere(
+      (ExpenseModel item) => item.id != null && item.id == expense.id,
+    );
+
+    if (removeIndex < 0 && fallbackIndex < _expenses.length) {
+      removeIndex = fallbackIndex;
+    }
+
+    if (removeIndex < 0 || removeIndex >= _expenses.length) {
+      return;
+    }
+
+    final ExpenseModel removedExpense = _expenses[removeIndex];
+
+    setState(() {
+      _expenses.removeAt(removeIndex);
+    });
+
+    bool shouldUndo = false;
+    final ScaffoldFeatureController<SnackBar, SnackBarClosedReason>
+    snackBarController = ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 5),
+        content: Text(
+          _trWithFallback('expense.delete_success', 'Đã xóa chi tiêu.'),
+        ),
+        action: SnackBarAction(
+          label: _trWithFallback('common.undo', 'Hoàn tác'),
+          onPressed: () {
+            shouldUndo = true;
+            setState(() {
+              final int restoreIndex = removeIndex <= _expenses.length
+                  ? removeIndex
+                  : _expenses.length;
+              _expenses.insert(restoreIndex, removedExpense);
+            });
+          },
+        ),
+      ),
+    );
+
+    await snackBarController.closed;
+
+    if (!mounted || shouldUndo) {
+      return;
+    }
+
+    final Map<String, dynamic> result = await ExpenseService.deleteExpense(
+      removedExpense.id!,
+      _currentUserId,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result['success'] == true) {
+      return;
+    }
+
+    setState(() {
+      final int restoreIndex = removeIndex <= _expenses.length
+          ? removeIndex
+          : _expenses.length;
+      _expenses.insert(restoreIndex, removedExpense);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _trWithFallback('expense.delete_failed', 'Xóa chi tiêu thất bại.'),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasData = _expenses.isNotEmpty;
@@ -503,15 +662,21 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            _formatCurrency(_totalExpense),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                          SizedBox(
+                            width: 112,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                formatCompactCurrency(_totalExpense),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                             'expense.total'.tr(),
                             style: const TextStyle(
@@ -618,70 +783,95 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 final expense = _expenses[index];
                 final meta = _metaForCategory(expense.category);
 
-                return Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7FAF8),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2E9E2)),
+                final String dismissKey =
+                    expense.id ??
+                    '${expense.userId}_${expense.date.millisecondsSinceEpoch}_$index';
+
+                return Dismissible(
+                  key: ValueKey<String>(dismissKey),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) => _confirmDeleteExpense(expense),
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE53935),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.delete_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: meta.color.withOpacity(0.14),
-                          borderRadius: BorderRadius.circular(16),
+                  onDismissed: (_) {
+                    _handleExpenseDismiss(expense, index);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7FAF8),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE2E9E2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: meta.color.withOpacity(0.14),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(meta.icon, color: meta.color),
                         ),
-                        child: Icon(meta.icon, color: meta.color),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _translateCategory(expense.category),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _translateCategory(expense.category),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              expense.note.isNotEmpty
-                                  ? expense.note
-                                  : 'Không có ghi chú',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.black54,
+                              const SizedBox(height: 4),
+                              Text(
+                                expense.note.isNotEmpty
+                                    ? expense.note
+                                    : 'Không có ghi chú',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black54,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _formatDate(expense.date),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.black45,
+                              const SizedBox(height: 6),
+                              Text(
+                                _formatDate(expense.date),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black45,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _formatCurrency(expense.amount),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                        const SizedBox(width: 12),
+                        Text(
+                          _formatCurrency(expense.amount),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
