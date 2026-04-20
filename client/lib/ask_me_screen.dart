@@ -44,8 +44,10 @@ class _AskMeScreenState extends State<AskMeScreen> {
   bool _isAiTyping = false;
   bool _isLoadingHistory = true;
   bool _dismissQuickPrompts = false;
-  String? _micErrorMessage;
   StreamSubscription<String>? _aiStreamSubscription;
+
+  static const String _micPermissionMessage =
+      'Khong the su dung micro. Vui long cap quyen microphone va thu lai.';
 
   @override
   void initState() {
@@ -79,26 +81,13 @@ class _AskMeScreenState extends State<AskMeScreen> {
             });
           }
         },
-        onError: (dynamic error) {
-          if (!mounted) {
-            return;
-          }
-
-          setState(() {
-            _isListening = false;
-            _speechReady = false;
-            _micErrorMessage = 'Khong the su dung micro: ${error.toString()}';
-          });
-        },
+        onError: _handleSpeechError,
       );
       if (!mounted) {
         return;
       }
       setState(() {
         _speechReady = available;
-        _micErrorMessage = available
-            ? null
-            : 'Khong the su dung micro. Vui long cap quyen microphone va thu lai.';
       });
     } catch (_) {
       if (!mounted) {
@@ -106,10 +95,42 @@ class _AskMeScreenState extends State<AskMeScreen> {
       }
       setState(() {
         _speechReady = false;
-        _micErrorMessage =
-            'Khong the su dung micro. Vui long cap quyen microphone va thu lai.';
       });
     }
+  }
+
+  bool _isSpeechRecognitionError(dynamic error) {
+    final String rawError = error.toString().toLowerCase();
+    return rawError.contains('error_speech_timeout') ||
+        rawError.contains('speech_timeout') ||
+        rawError.contains('error_');
+  }
+
+  void _showSnackBarMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _handleSpeechError(dynamic error) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isListening = false;
+    });
+
+    if (_isSpeechRecognitionError(error)) {
+      _showSnackBarMessage('Không nghe rõ, vui lòng thử lại.');
+      return;
+    }
+
+    _showSnackBarMessage(_micPermissionMessage);
   }
 
   void _onInputChanged() {
@@ -176,14 +197,9 @@ class _AskMeScreenState extends State<AskMeScreen> {
           return;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _micErrorMessage ??
-                  'Khong the su dung micro. Vui long cap quyen microphone va thu lai.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(_micPermissionMessage)));
         return;
       }
     }
@@ -685,8 +701,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
                           key: const ValueKey<String>('idle_state'),
                           _speechReady
                               ? 'Nhan giu icon mic de nhap giong noi'
-                              : (_micErrorMessage ??
-                                    'Microphone chua san sang'),
+                              : 'Microphone chua san sang',
                           style: const TextStyle(
                             color: Colors.black45,
                             fontSize: 12,
@@ -786,12 +801,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
                           return;
                         }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _micErrorMessage ??
-                                  'Khong the su dung micro. Vui long cap quyen microphone va thu lai.',
-                            ),
-                          ),
+                          const SnackBar(content: Text(_micPermissionMessage)),
                         );
                       },
                       child: AnimatedContainer(
