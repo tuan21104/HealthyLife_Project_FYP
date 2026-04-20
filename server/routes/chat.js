@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
 const Chat = require('../models/Chat');
+const { generatePersonalizedReply } = require('../services/chatAssistant');
 
 // GET /api/chat/:userId - Lấy toàn bộ lịch sử chat theo thứ tự cũ -> mới
 router.get('/:userId', async (req, res) => {
@@ -76,6 +77,31 @@ router.post('/save', async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/chat/message - Tao phan hoi AI duoc ca nhan hoa tu du lieu MongoDB
+router.post('/message', async (req, res) => {
+  try {
+    const { userId, message, imagePart } = req.body;
+
+    const result = await generatePersonalizedReply({
+      userId,
+      message,
+      imagePart,
+    });
+
+    return res.status(200).json({
+      success: true,
+      reply: result.reply,
+      contextString: result.contextString,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
   }
 });
 

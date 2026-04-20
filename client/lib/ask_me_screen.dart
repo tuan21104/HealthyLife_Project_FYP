@@ -21,9 +21,7 @@ class AskMeScreen extends StatefulWidget {
 }
 
 class _AskMeScreenState extends State<AskMeScreen> {
-  final AiChatService _aiChatService = const AiChatService(
-    model: 'gemini-2.5-flash',
-  );
+  final AiChatService _aiChatService = AiChatService();
   final ImagePicker _imagePicker = ImagePicker();
   final stt.SpeechToText _speechToText = stt.SpeechToText();
   final TextEditingController _messageController = TextEditingController();
@@ -361,17 +359,6 @@ class _AskMeScreenState extends State<AskMeScreen> {
     });
   }
 
-  List<Map<String, dynamic>> _toHistoryPayload() {
-    return _messages
-        .map(
-          (_ChatMessage message) => <String, dynamic>{
-            'role': message.isAi ? 'model' : 'user',
-            'text': message.text,
-          },
-        )
-        .toList();
-  }
-
   Future<void> _sendMessage() async {
     if (_isLoadingHistory || _isAiTyping) {
       return;
@@ -384,7 +371,6 @@ class _AskMeScreenState extends State<AskMeScreen> {
       return;
     }
 
-    final List<Map<String, dynamic>> historyForContext = _toHistoryPayload();
     final String displayText = text.isEmpty
         ? 'Sent an image'
         : imageToSend == null
@@ -416,16 +402,12 @@ class _AskMeScreenState extends State<AskMeScreen> {
 
     final int aiMessageIndex = _messages.length - 1;
 
-    if (_userId != null && _userId!.trim().isNotEmpty && text.isNotEmpty) {
-      await _aiChatService.saveMessageToDb(_userId!, 'user', text);
-    }
-
     final StringBuffer aiBuffer = StringBuffer();
     final Completer<void> doneCompleter = Completer<void>();
 
     await _aiStreamSubscription?.cancel();
     _aiStreamSubscription = _aiChatService
-        .sendMessage(text, chatHistory: historyForContext, image: imageToSend)
+        .sendMessage(text, userId: _userId ?? '', image: imageToSend)
         .listen(
           (String chunk) {
             if (!mounted || chunk.isEmpty) {
@@ -474,10 +456,6 @@ class _AskMeScreenState extends State<AskMeScreen> {
               _isAiTyping = false;
             });
 
-            if (_userId != null && _userId!.trim().isNotEmpty) {
-              await _aiChatService.saveMessageToDb(_userId!, 'model', fallback);
-            }
-
             if (!doneCompleter.isCompleted) {
               doneCompleter.complete();
             }
@@ -506,14 +484,6 @@ class _AskMeScreenState extends State<AskMeScreen> {
               }
               _isAiTyping = false;
             });
-
-            if (_userId != null && _userId!.trim().isNotEmpty) {
-              await _aiChatService.saveMessageToDb(
-                _userId!,
-                'model',
-                finalAiText,
-              );
-            }
 
             if (!doneCompleter.isCompleted) {
               doneCompleter.complete();
