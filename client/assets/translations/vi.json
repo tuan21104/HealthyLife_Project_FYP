@@ -264,6 +264,8 @@
     "cart": "Giỏ hàng",
     "checkout": "Thanh toán",
     "delivery_address": "Địa chỉ giao hàng",
+    "enter_delivery_address": "Nhập địa chỉ giao hàng",
+    "use_current_location": "Dùng vị trí hiện tại",
     "shipping_fee": "Phí giao hàng",
     "subtotal": "Tổng cộng",
     "total": "Tổng",

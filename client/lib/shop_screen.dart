@@ -8,6 +8,7 @@ import 'package:geocoding/geocoding.dart';
 import 'dart:io';
 
 import 'services/auth_service.dart';
+import 'services/location_service.dart';
 import 'main_screen.dart';
 import 'modal_effects.dart';
 import 'animation_presets.dart';
@@ -28,15 +29,13 @@ class _ShopScreenState extends State<ShopScreen> {
   static const Color _softBorder = Color(0xFFE7ECE2);
   static const double _storeLat = 21.0382;
   static const double _storeLng = 105.7827;
-  static const String _defaultAddress = '51 ngõ 59 đường Phạm Văn Đồng';
   static const double _shippingRatePerKm = 5000;
 
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController(
-    text: _defaultAddress,
-  );
+  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _addressEditingController =
       TextEditingController();
+  final LocationService _locationService = const LocationService();
 
   final List<Map<String, dynamic>> _categoryTabs = const [
     {'key': 'all', 'labelKey': 'shop.all', 'icon': Icons.apps_rounded},
@@ -75,7 +74,6 @@ class _ShopScreenState extends State<ShopScreen> {
       setState(() => _searchQuery = _searchController.text.trim());
     });
     _loadData();
-    _calculateShipping(_defaultAddress);
   }
 
   @override
@@ -154,6 +152,7 @@ class _ShopScreenState extends State<ShopScreen> {
           _estimatedTimeMins = 15 + (distanceKm * 2).round();
           _totalPriceVnd = (_cartSubtotal + shippingFee).round();
           _addressController.text = address.trim();
+          _addressEditingController.text = address.trim();
           _isCalculatingShipping = false;
 
           // Check if distance exceeds 10km
@@ -173,6 +172,62 @@ class _ShopScreenState extends State<ShopScreen> {
         setState(() => _isCalculatingShipping = false);
       }
     }
+  }
+
+  Future<void> _confirmDeliveryAddress() async {
+    final address = _addressEditingController.text.trim();
+    if (address.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${'common.warning'.tr()}: ${'shop.delivery_address'.tr()}',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await _calculateShipping(address);
+  }
+
+  Future<void> _useCurrentLocationAddress() async {
+    setState(() => _isCalculatingShipping = true);
+
+    final position = await _locationService.getCurrentLocation();
+    if (!mounted) return;
+
+    if (position == null) {
+      setState(() => _isCalculatingShipping = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Không thể lấy vị trí hiện tại. Vui lòng bật GPS và cấp quyền vị trí.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final address = await _locationService.getAddressFromLatLng(
+      position.latitude,
+      position.longitude,
+    );
+
+    if (!mounted) return;
+
+    if (address.trim().isEmpty || address == 'Không xác định được địa chỉ') {
+      setState(() => _isCalculatingShipping = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Không thể xác định địa chỉ từ vị trí hiện tại. Vui lòng nhập thủ công.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await _calculateShipping(address);
   }
 
   @override
@@ -2104,49 +2159,7 @@ class _ShopScreenState extends State<ShopScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _addressController.text.trim().isEmpty
-              ? 'shop.delivery_address'.tr()
-              : _addressController.text.trim(),
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: _darkText,
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextButton.icon(
-          onPressed: _showAddressEditDialog,
-          icon: const Icon(Icons.edit_rounded, size: 18),
-          label: Text('common.edit'.tr()),
-          style: TextButton.styleFrom(
-            foregroundColor: _darkText,
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(0, 30),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showAddressEditDialog() {
-    _addressEditingController.text = _addressController.text;
-    ModalEffects.showScaleFadeDialog(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'shop.delivery_address'.tr(),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: _darkText,
-          ),
-        ),
-        content: TextField(
+        TextField(
           controller: _addressEditingController,
           maxLines: 2,
           textCapitalization: TextCapitalization.words,
@@ -2154,9 +2167,11 @@ class _ShopScreenState extends State<ShopScreen> {
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: _darkText,
+            height: 1.35,
           ),
+          onSubmitted: (_) => _confirmDeliveryAddress(),
           decoration: InputDecoration(
-            hintText: 'shop.delivery_address'.tr(),
+            hintText: 'shop.enter_delivery_address'.tr(),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: _softBorder),
@@ -2168,32 +2183,47 @@ class _ShopScreenState extends State<ShopScreen> {
             contentPadding: const EdgeInsets.all(12),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'common.cancel'.tr(),
-              style: TextStyle(color: _mutedText, fontWeight: FontWeight.w600),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              final newAddress = _addressEditingController.text.trim();
-              if (newAddress.isNotEmpty) {
-                Navigator.pop(context);
-                _calculateShipping(newAddress);
-              }
-            },
-            child: Text(
-              'common.confirm'.tr(),
-              style: TextStyle(
-                color: _primaryGreen,
-                fontWeight: FontWeight.w800,
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _useCurrentLocationAddress,
+              icon: const Icon(Icons.my_location_rounded, size: 18),
+              label: Text('shop.use_current_location'.tr()),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _darkText,
+                side: const BorderSide(color: _softBorder),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+            ElevatedButton.icon(
+              onPressed: _confirmDeliveryAddress,
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: Text('common.confirm'.tr()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -2220,10 +2250,6 @@ class _ShopScreenState extends State<ShopScreen> {
               borderSide: const BorderSide(color: _primaryGreen, width: 2),
             ),
             contentPadding: const EdgeInsets.all(12),
-            prefixIcon: const Padding(
-              padding: EdgeInsets.only(left: 12, right: 8),
-              child: Icon(Icons.phone_outlined, color: _mutedText, size: 18),
-            ),
           ),
         ),
       ],
