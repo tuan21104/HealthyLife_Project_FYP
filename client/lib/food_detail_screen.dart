@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'modal_effects.dart';
 
 class FoodDetailScreen extends StatefulWidget {
@@ -78,7 +79,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Add ${widget.mealType}",
+          '${'diary.add_to'.tr()} ${widget.mealType}',
           style: const TextStyle(color: Colors.black54, fontSize: 28),
         ),
       ),
@@ -120,32 +121,36 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                     _buildAmountRow(),
                     _buildDivider(),
                     _buildNutrientRow(
-                      "Energy",
-                      "${energy.toStringAsFixed(1)} Kcal",
+                      'diary.energy'.tr(),
+                      '${energy.toStringAsFixed(1)} Kcal',
                       isBold: true,
                     ),
                     _buildDivider(),
-                    _buildNutrientRow("Carb", "${carb.toStringAsFixed(1)} gr"),
-                    _buildDivider(),
                     _buildNutrientRow(
-                      "Proteins",
-                      "${protein.toStringAsFixed(1)} gr",
+                      'diary.carb'.tr(),
+                      '${carb.toStringAsFixed(1)} g',
                     ),
                     _buildDivider(),
                     _buildNutrientRow(
-                      "Fiber",
-                      "${fiber.toStringAsFixed(1)} gr",
+                      'diary.protein'.tr(),
+                      '${protein.toStringAsFixed(1)} g',
                     ),
                     _buildDivider(),
-                    _buildNutrientRow("Fat", "${fat.toStringAsFixed(1)} gr"),
+                    _buildNutrientRow(
+                      'diary.fiber'.tr(),
+                      '${fiber.toStringAsFixed(1)} g',
+                    ),
+                    _buildDivider(),
+                    _buildNutrientRow(
+                      'diary.fat'.tr(),
+                      '${fat.toStringAsFixed(1)} g',
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 40),
-
-              // NÚT LƯU - ĐÓNG GÓI DỮ LIỆU GỬI VỀ TRANG TRƯỚC
-              _buildActionButton("Add to Diary", _greenColor, () {
-                Map<String, dynamic> addedItem = {
+              _buildActionButton('diary.add_to_diary'.tr(), _greenColor, () {
+                final Map<String, dynamic> addedItem = {
                   'name': foodName,
                   'amount': '${inputAmount.toStringAsFixed(0)} $_selectedUnit',
                   'kcal': energy,
@@ -154,14 +159,11 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                   'fat': fat,
                   'fiber': fiber,
                 };
-                Navigator.pop(
-                  context,
-                  addedItem,
-                ); // Gửi gói hàng về trang Search
+                Navigator.pop(context, addedItem);
               }),
               const SizedBox(height: 16),
               _buildActionButton(
-                "Cancel",
+                'common.cancel'.tr(),
                 _greenColor,
                 () => Navigator.pop(context),
               ),
@@ -180,11 +182,11 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 80,
             child: Text(
-              "Amount",
-              style: TextStyle(color: Colors.black54, fontSize: 14),
+              'diary.amount'.tr(),
+              style: const TextStyle(color: Colors.black54, fontSize: 14),
             ),
           ),
           Expanded(
@@ -295,7 +297,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
 
   void _showUnitPickerModal() {
     String tempSelectedUnit = _selectedUnit;
-    final units = ["Gr", "dl", "Tbl Spoon", "Serving (130gr)"];
+    final units = ['Gr', 'dl', 'Tbl Spoon', 'Serving (130gr)'];
     ModalEffects.showAppBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -313,9 +315,12 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Unit",
-                        style: TextStyle(fontSize: 20, color: Colors.black54),
+                      Text(
+                        'diary.unit'.tr(),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          color: Colors.black54,
+                        ),
                       ),
                       TextButton.icon(
                         onPressed: () => Navigator.pop(context),
@@ -324,9 +329,12 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                           color: Colors.grey,
                           size: 20,
                         ),
-                        label: const Text(
-                          "Cancel",
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        label: Text(
+                          'common.cancel'.tr(),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ],
@@ -341,8 +349,11 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                       value: unit,
                       groupValue: tempSelectedUnit,
                       activeColor: _greenColor,
-                      onChanged: (String? value) =>
-                          setModalState(() => tempSelectedUnit = value!),
+                      onChanged: (String? value) {
+                        if (value != null) {
+                          setModalState(() => tempSelectedUnit = value);
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -361,9 +372,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        "OK",
-                        style: TextStyle(
+                      child: Text(
+                        'common.ok'.tr(),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,

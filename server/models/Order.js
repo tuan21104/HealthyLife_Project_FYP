@@ -8,7 +8,7 @@ const orderSchema = new mongoose.Schema({
   productImageUrl: { type: String, default: '' },
   quantity: { type: Number, default: 1 },
   totalVnd: { type: Number, required: true },
-  totalCalo: { type: Number, required: true }, // Số calo bị trừ
+  totalCalo: { type: Number, required: true }, 
   address: { type: String, required: true },
   deliveryAddress: { type: String, default: '' },
   phoneNumber: { type: String, default: '' },
@@ -19,6 +19,8 @@ const orderSchema = new mongoose.Schema({
   distanceKm: { type: Number, default: 0 },
   shippingFee: { type: Number, default: 0 },
   totalAmount: { type: Number, default: 0 },
+  voucherApplied: { type: Boolean, default: false },
+  voucherDiscount: { type: Number, default: 0 },
   billUrl: { type: String, default: '' },
   items: [
     {
@@ -29,6 +31,11 @@ const orderSchema = new mongoose.Schema({
       quantity: { type: Number, default: 1 },
       totalVnd: { type: Number, default: 0 },
       totalCalo: { type: Number, default: 0 },
+      calories: { type: Number, default: 0 },
+      carb: { type: Number, default: 0 },
+      protein: { type: Number, default: 0 },
+      fat: { type: Number, default: 0 },
+      fiber: { type: Number, default: 0 },
     }
   ],
   mealField: { type: String, default: '' },

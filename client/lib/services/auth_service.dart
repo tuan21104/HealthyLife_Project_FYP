@@ -995,6 +995,7 @@ class AuthService {
     required double distanceKm,
     int quantity = 1,
     String phoneNumber = '',
+    bool applyVoucher = false,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1023,6 +1024,7 @@ class AuthService {
           'shippingFee': shippingFee,
           'distanceKm': distanceKm,
           'phoneNumber': phoneNumber,
+          'applyVoucher': applyVoucher,
         }),
       );
       return jsonDecode(response.body);
@@ -1066,6 +1068,32 @@ class AuthService {
       return {'success': false, 'orders': []};
     } catch (e) {
       return {'success': false, 'orders': []};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getVoucherStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+
+      if (userId == null || userId.isEmpty) {
+        return {'success': false};
+      }
+
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/shop/voucher-status/$userId'))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+
+      return {'success': false};
+    } catch (_) {
+      return {'success': false};
     }
   }
 }

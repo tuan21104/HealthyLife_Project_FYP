@@ -63,6 +63,10 @@ class _ShopScreenState extends State<ShopScreen> {
   double _calculatedDistance = 0.0;
   int _shippingFeeVnd = 0;
   int _totalPriceVnd = 0;
+  bool _voucherAvailable = false;
+  bool _useVoucher = false;
+  int _voucherProgressVnd = 0;
+  static const int _voucherThresholdVnd = 1000000;
   bool _isCalculatingShipping = false;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _phoneEditingController = TextEditingController();
@@ -89,10 +93,22 @@ class _ShopScreenState extends State<ShopScreen> {
   Future<void> _loadData() async {
     try {
       final result = await AuthService.getAllProducts();
+      final voucherResult = await AuthService.getVoucherStatus();
       if (!mounted) return;
+
+      final voucher = (voucherResult['voucher'] is Map)
+          ? Map<String, dynamic>.from(voucherResult['voucher'] as Map)
+          : <String, dynamic>{};
+
       setState(() {
         _products = result['products'] ?? [];
+        _voucherAvailable = voucher['available'] == true;
+        _voucherProgressVnd = ((voucher['progress'] ?? 0) as num).toInt();
+        if (!_voucherAvailable) {
+          _useVoucher = false;
+        }
         _isLoading = false;
+        _recomputeTotalPrice();
       });
     } catch (_) {
       if (mounted) {
@@ -150,7 +166,7 @@ class _ShopScreenState extends State<ShopScreen> {
           _calculatedDistance = distanceKm;
           _shippingFeeVnd = shippingFee;
           _estimatedTimeMins = 15 + (distanceKm * 2).round();
-          _totalPriceVnd = (_cartSubtotal + shippingFee).round();
+          _recomputeTotalPrice();
           _addressController.text = address.trim();
           _addressEditingController.text = address.trim();
           _isCalculatingShipping = false;
@@ -199,11 +215,7 @@ class _ShopScreenState extends State<ShopScreen> {
     if (position == null) {
       setState(() => _isCalculatingShipping = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Không thể lấy vị trí hiện tại. Vui lòng bật GPS và cấp quyền vị trí.',
-          ),
-        ),
+        SnackBar(content: Text('shop.location_permission_required'.tr())),
       );
       return;
     }
@@ -218,11 +230,7 @@ class _ShopScreenState extends State<ShopScreen> {
     if (address.trim().isEmpty || address == 'Không xác định được địa chỉ') {
       setState(() => _isCalculatingShipping = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Không thể xác định địa chỉ từ vị trí hiện tại. Vui lòng nhập thủ công.',
-          ),
-        ),
+        SnackBar(content: Text('shop.location_address_unavailable'.tr())),
       );
       return;
     }
@@ -566,23 +574,13 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   Widget _buildSectionHeader(String title) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: _darkText,
-          ),
-        ),
-        TextButton(
-          onPressed: () => setState(() => _selectedCategory = 'all'),
-          style: TextButton.styleFrom(foregroundColor: _mutedText),
-          child: Text('common.add'.tr()),
-        ),
-      ],
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: _darkText,
+      ),
     );
   }
 
@@ -643,7 +641,7 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget _buildDiscountRow() {
     final discounts = _discountProducts;
     return SizedBox(
-      height: 176,
+      height: 208,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: discounts.length,
@@ -651,62 +649,67 @@ class _ShopScreenState extends State<ShopScreen> {
         itemBuilder: (context, index) {
           final product = discounts[index];
           return GestureDetector(
-            onTap: () => _addToCart(product, openCart: true),
-            child: Container(
+            onTap: () => _showProductDetails(product),
+            child: SizedBox(
               width: 154,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _softBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(18),
-                    ),
-                    child: CachedNetworkImage(
-                      imageUrl: _resolveImageUrl(product['imageUrl']),
-                      height: 108,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: const Color(0xFFF0F3EC),
-                        alignment: Alignment.center,
-                        child: const CircularProgressIndicator(strokeWidth: 2),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: _softBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(18),
                       ),
-                      errorWidget: (_, __, ___) => _buildImageFallback(
-                        isFood: _isFoodProduct(product),
-                        width: double.infinity,
+                      child: CachedNetworkImage(
+                        imageUrl: _resolveImageUrl(product['imageUrl']),
                         height: 108,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: const Color(0xFFF0F3EC),
+                          alignment: Alignment.center,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => _buildImageFallback(
+                          isFood: _isFoodProduct(product),
+                          width: double.infinity,
+                          height: 108,
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                    child: Text(
-                      product['name']?.toString() ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                      child: Text(
+                        product['name']?.toString() ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-                    child: Text(
-                      _formatVnd(_productPrice(product)),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: _primaryGreen,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                      child: Text(
+                        _formatVnd(_productPrice(product)),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: _primaryGreen,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                  ],
+                ),
               ),
             ),
           ).withStagger(index, beginY: 0.1);
@@ -717,7 +720,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _buildProductCard(Map<String, dynamic> product) {
     return GestureDetector(
-      onTap: () => _addToCart(product, openCart: true),
+      onTap: () => _showProductDetails(product),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -814,6 +817,210 @@ class _ShopScreenState extends State<ShopScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  double _macroValue(Map<String, dynamic> product, String key) {
+    final value = product[key];
+    return value is num ? value.toDouble() : 0.0;
+  }
+
+  String _formatMacroNumber(double value) {
+    return value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
+  }
+
+  Widget _buildMacroTile(String label, String value, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7FBF3),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _softBorder),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: _primaryGreen),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: _darkText,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: _mutedText),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProductDetails(Map<String, dynamic> product) {
+    final imageUrl = _resolveImageUrl(product['imageUrl']);
+    final description = product['description']?.toString().trim() ?? '';
+
+    ModalEffects.showAppBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _softBorder,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      height: 180,
+                      color: const Color(0xFFF0F3EC),
+                      alignment: Alignment.center,
+                      child: const CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    errorWidget: (_, __, ___) => _buildImageFallback(
+                      isFood: _isFoodProduct(product),
+                      width: double.infinity,
+                      height: 180,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  product['name']?.toString() ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: _darkText,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  product['category']?.toString() ?? '',
+                  style: const TextStyle(fontSize: 12, color: _mutedText),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatVnd(_productPrice(product)),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: _primaryGreen,
+                  ),
+                ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: _darkText,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildMacroTile(
+                      'shop.macro_kcal'.tr(),
+                      '${_formatMacroNumber(_macroValue(product, 'calories'))} kcal',
+                      Icons.local_fire_department_outlined,
+                    ),
+                    const SizedBox(width: 10),
+                    _buildMacroTile(
+                      'shop.macro_carb'.tr(),
+                      '${_formatMacroNumber(_macroValue(product, 'carbs'))} g',
+                      Icons.bakery_dining_outlined,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _buildMacroTile(
+                      'shop.macro_protein'.tr(),
+                      '${_formatMacroNumber(_macroValue(product, 'protein'))} g',
+                      Icons.fitness_center_outlined,
+                    ),
+                    const SizedBox(width: 10),
+                    _buildMacroTile(
+                      'shop.macro_fat'.tr(),
+                      '${_formatMacroNumber(_macroValue(product, 'fat'))} g',
+                      Icons.opacity_outlined,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _darkText,
+                          side: const BorderSide(color: _softBorder),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text('common.close'.tr()),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _addToCart(product, openCart: true);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text('shop.add_to_cart'.tr()),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1041,6 +1248,85 @@ class _ShopScreenState extends State<ShopScreen> {
                   'shop.shipping_fee'.tr(),
                   '+${_formatVnd(shippingFee)}',
                 ),
+                if (_voucherAvailable) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7FBF3),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _softBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: _useVoucher,
+                          activeColor: _primaryGreen,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _useVoucher = value == true;
+                              _recomputeTotalPrice();
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'shop.voucher_20_title'.tr(),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: _darkText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'shop.voucher_20_subtitle'.tr(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _mutedText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_useVoucher)
+                          Text(
+                            '-${_formatVnd(_voucherDiscountVnd)}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: _primaryGreen,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'shop.voucher_progress'.tr(
+                      namedArgs: {
+                        'current': _formatVnd(_voucherProgressVnd.toDouble()),
+                        'target': _formatVnd(_voucherThresholdVnd.toDouble()),
+                      },
+                    ),
+                    style: const TextStyle(fontSize: 12, color: _mutedText),
+                  ),
+                ],
+                if (_useVoucher) ...[
+                  const SizedBox(height: 10),
+                  _buildSummaryRow(
+                    'shop.voucher_discount'.tr(),
+                    '-${_formatVnd(_voucherDiscountVnd)}',
+                  ),
+                ],
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(height: 1),
@@ -1082,9 +1368,9 @@ class _ShopScreenState extends State<ShopScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'VCB - 9947890196',
-                        style: TextStyle(
+                      Text(
+                        'shop.bank_account'.tr(),
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: _darkText,
@@ -1894,6 +2180,7 @@ class _ShopScreenState extends State<ShopScreen> {
         distanceKm: _distanceFromStoreKm,
         shippingFee: _shippingFee,
         phoneNumber: phone,
+        applyVoucher: _useVoucher,
       );
 
       if (response?['success'] != true) {
@@ -1912,7 +2199,15 @@ class _ShopScreenState extends State<ShopScreen> {
 
       setState(() {
         _lastDeliveredAddress = address;
-        _lastPaidAmount = _totalPriceVnd.toDouble();
+        _lastPaidAmount =
+            ((response?['delivery']?['totalAmount'] ?? _totalPriceVnd) as num)
+                .toDouble();
+        final voucher = (response?['voucher'] is Map)
+            ? Map<String, dynamic>.from(response?['voucher'] as Map)
+            : <String, dynamic>{};
+        _voucherAvailable = voucher['available'] == true;
+        _voucherProgressVnd = ((voucher['progress'] ?? 0) as num).toInt();
+        _useVoucher = false;
         _cartItems = [];
         _billImage = null;
         _totalPriceVnd = 0;
@@ -2264,8 +2559,16 @@ class _ShopScreenState extends State<ShopScreen> {
     return _shippingFeeVnd;
   }
 
+  int get _voucherDiscountVnd {
+    if (!_voucherAvailable || !_useVoucher) return 0;
+    final beforeDiscount = (_cartSubtotal + _shippingFee).round();
+    return (beforeDiscount * 0.2).round();
+  }
+
   void _recomputeTotalPrice() {
-    _totalPriceVnd = (_cartSubtotal + _shippingFee).round();
+    final beforeDiscount = (_cartSubtotal + _shippingFee).round();
+    final afterDiscount = beforeDiscount - _voucherDiscountVnd;
+    _totalPriceVnd = afterDiscount > 0 ? afterDiscount : 0;
   }
 
   double get _cartSubtotal {

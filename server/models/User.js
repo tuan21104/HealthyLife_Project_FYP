@@ -103,6 +103,14 @@ const UserSchema = new mongoose.Schema({
         type: Number,
         default: null
     },
+    voucherProgressVnd: {
+        type: Number,
+        default: 0
+    },
+    hasVoucher20: {
+        type: Boolean,
+        default: false
+    },
     avatarUrl: { // Thêm trường avatarUrl
         type: String,
         default: ''

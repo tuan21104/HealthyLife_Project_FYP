@@ -18,6 +18,22 @@ const IMAGE_FALLBACKS = {
 const IMAGE_CHECK_TIMEOUT_MS = 3500;
 const IMAGE_CHECK_CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 const imageHealthCache = new Map();
+const VOUCHER_THRESHOLD_VND = 1000000;
+const VOUCHER_DISCOUNT_RATE = 0.2;
+
+function buildVoucherState(user) {
+  const available = !!user?.hasVoucher20;
+  const progress = Math.max(0, Number(user?.voucherProgressVnd) || 0);
+  const remaining = available ? 0 : Math.max(0, VOUCHER_THRESHOLD_VND - progress);
+
+  return {
+    available,
+    progress,
+    threshold: VOUCHER_THRESHOLD_VND,
+    remaining,
+    discountPercent: Math.round(VOUCHER_DISCOUNT_RATE * 100),
+  };
+}
 
 function getCategoryFallback(category) {
   const key = (category || '').toString().toLowerCase();
@@ -145,9 +161,29 @@ router.get('/history/:userId', async (req, res) => {
   }
 });
 
+router.get('/voucher-status/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select(
+      'hasVoucher20 voucherProgressVnd'
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    return res.json({
+      success: true,
+      voucher: buildVoucherState(user),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // --- API REDEEM (ĐẶT HÀNG & ĐỔI QUÀ) ---
 router.post('/redeem', async (req, res) => {
   const { userId } = req.body;
+  const applyVoucher = req.body.applyVoucher === true;
   const billUrl = (req.body.billUrl || '').trim();
   const address = (req.body.address || '').trim();
   const phoneNumber = (req.body.phoneNumber || '').trim();
@@ -177,6 +213,13 @@ router.post('/redeem', async (req, res) => {
 
     if (!deliveryAddress) {
       return res.status(400).json({ success: false, message: "Vui lòng nhập địa chỉ nhận hàng" });
+    }
+
+    if (applyVoucher && !user.hasVoucher20) {
+      return res.status(400).json({
+        success: false,
+        message: 'Voucher không còn khả dụng hoặc đã được sử dụng',
+      });
     }
 
     const incomingItems = Array.isArray(req.body.items) ? req.body.items : [];
@@ -218,6 +261,11 @@ router.post('/redeem', async (req, res) => {
       const quantity = item.quantity;
       const productTotalVnd = (product.priceVND || 0) * quantity;
       const productTotalCalo = (product.priceCalo || 0) * quantity;
+      const productCalories = (product.calories || 0) * quantity;
+      const productCarbs = (product.carbs || 0) * quantity;
+      const productProtein = (product.protein || 0) * quantity;
+      const productFat = (product.fat || 0) * quantity;
+      const productFiber = (product.fiber || 0) * quantity;
 
       totalProductVnd += productTotalVnd;
       totalCostCalo += productTotalCalo;
@@ -231,11 +279,12 @@ router.post('/redeem', async (req, res) => {
         diary[mealField].push({
           name: product.name,
           amount: `${quantity} phần`,
-          kcal: (product.calories || 0) * quantity,
-          calories: (product.calories || 0) * quantity,
-          carb: 0,
-          protein: 0,
-          fat: 0,
+          kcal: productCalories,
+          calories: productCalories,
+          carb: productCarbs,
+          protein: productProtein,
+          fat: productFat,
+          fiber: productFiber,
           time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
           source: 'shop',
           productId: product._id.toString(),
@@ -255,6 +304,11 @@ router.post('/redeem', async (req, res) => {
         quantity,
         totalVnd: productTotalVnd,
         totalCalo: productTotalCalo,
+        calories: productCalories,
+        carb: productCarbs,
+        protein: productProtein,
+        fat: productFat,
+        fiber: productFiber,
       });
     }
 
@@ -262,14 +316,34 @@ router.post('/redeem', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Không đủ Calo để đặt đơn này!' });
     }
 
+    const originalTotalAmount = totalProductVnd + shippingFee;
+    const voucherApplied = applyVoucher && user.hasVoucher20;
+    const voucherDiscount = voucherApplied
+      ? Math.round(originalTotalAmount * VOUCHER_DISCOUNT_RATE)
+      : 0;
+    const totalAmount = Math.max(0, originalTotalAmount - voucherDiscount);
+
     user.targetCalo -= totalCostCalo;
+
+    if (voucherApplied) {
+      user.hasVoucher20 = false;
+      user.voucherProgressVnd = 0;
+    } else if (!user.hasVoucher20) {
+      const nextProgress = (Number(user.voucherProgressVnd) || 0) + totalAmount;
+      if (nextProgress >= VOUCHER_THRESHOLD_VND) {
+        user.hasVoucher20 = true;
+        user.voucherProgressVnd = 0;
+      } else {
+        user.voucherProgressVnd = nextProgress;
+      }
+    }
+
     await user.save();
 
     if (diary) {
       await diary.save();
     }
 
-    const totalAmount = totalProductVnd + shippingFee;
     const totalQuantity = resolvedItems.reduce((sum, item) => sum + item.quantity, 0);
     const representativeItem = resolvedItems[0];
 
@@ -292,6 +366,8 @@ router.post('/redeem', async (req, res) => {
       distanceKm,
       shippingFee,
       totalAmount,
+      voucherApplied,
+      voucherDiscount,
       billUrl,
       mealField: diary ? mealField : '',
       status: 'pending',
@@ -339,6 +415,7 @@ router.post('/redeem', async (req, res) => {
           <p><b>Tiền sản phẩm:</b> ${totalProductVnd} VNĐ + ${totalCostCalo} kcal</p>
           <p><b>Khoảng cách:</b> ${distanceKm} km</p>
           <p><b>Phí giao hàng:</b> ${shippingFee} VNĐ</p>
+          ${voucherApplied ? `<p><b>Voucher:</b> -${voucherDiscount} VNĐ (20%)</p>` : ''}
           <p><b>Tổng thanh toán:</b> ${totalAmount} VNĐ</p>
           <p><b>Địa chỉ nhận:</b> <span style="color: #e74c3c;">${deliveryAddress}</span></p>
           ${billUrl ? `<p><b>Ảnh minh chứng thanh toán:</b></p><img src="${billUrl}" width="250" style="border-radius: 8px; border: 1px solid #ddd;"/><br><a href="${billUrl}">Xem ảnh gốc</a>` : '<p><b>Ảnh minh chứng thanh toán:</b> Không đính kèm</p>'}
@@ -359,8 +436,12 @@ router.post('/redeem', async (req, res) => {
       delivery: {
         distanceKm,
         shippingFee,
-        totalAmount
-      }
+        totalAmount,
+        originalTotalAmount,
+        voucherApplied,
+        voucherDiscount,
+      },
+      voucher: buildVoucherState(user),
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
