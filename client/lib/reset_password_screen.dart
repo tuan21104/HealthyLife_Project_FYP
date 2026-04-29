@@ -1,5 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import 'core/utils/i18n_fallback.dart';
 import 'login_screen.dart';
 import 'services/auth_service.dart';
 
@@ -49,12 +51,26 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final confirmPassword = _confirmPasswordController.text;
 
     if (newPassword.length < 6) {
-      _showMessage('Mat khau moi phai co it nhat 6 ky tu.');
+      _showMessage(
+        trSafe(
+          context,
+          'auth.password_too_short',
+          vi: 'Mật khẩu mới phải có ít nhất 6 ký tự.',
+          en: 'New password must be at least 6 characters.',
+        ),
+      );
       return;
     }
 
     if (newPassword != confirmPassword) {
-      _showMessage('Mat khau nhap lai khong khop.');
+      _showMessage(
+        trSafe(
+          context,
+          'auth.password_mismatch',
+          vi: 'Mật khẩu nhập lại không khớp.',
+          en: 'Passwords do not match.',
+        ),
+      );
       return;
     }
 
@@ -65,10 +81,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         widget.otpCode,
         newPassword,
       );
-      _showMessage(
-        'Doi mat khau thanh cong. Moi ban dang nhap lai.',
-        color: Colors.green,
-      );
+      _showMessage('auth.password_reset_success'.tr(), color: Colors.green);
 
       if (!mounted) return;
       await Future.delayed(const Duration(milliseconds: 250));
@@ -89,7 +102,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dat lai mat khau')),
+      appBar: AppBar(title: Text('auth.reset_password_title'.tr())),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -97,7 +110,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Dat mat khau moi cho ${widget.email}',
+                trSafe(
+                  context,
+                  'auth.set_new_password_for',
+                  vi: 'Đặt mật khẩu mới cho {email}',
+                  en: 'Set a new password for {email}',
+                  namedArgs: {'email': widget.email},
+                ),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -108,7 +127,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _newPasswordController,
                 obscureText: _obscureNew,
                 decoration: InputDecoration(
-                  labelText: 'Mat khau moi',
+                  labelText: 'auth.new_password'.tr(),
                   prefixIcon: const Icon(Icons.lock_outline),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -128,7 +147,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirm,
                 decoration: InputDecoration(
-                  labelText: 'Nhap lai mat khau moi',
+                  labelText: 'auth.confirm_new_password'.tr(),
                   prefixIcon: const Icon(Icons.lock_reset_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -165,8 +184,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             strokeWidth: 2.2,
                           ),
                         )
-                      : const Text(
-                          'Xac nhan mat khau moi',
+                      : Text(
+                          'auth.confirm_new_password_action'.tr(),
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,

@@ -948,7 +948,7 @@ class _AskMeScreenState extends State<AskMeScreen> {
                           return;
                         }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Đã sao chép!')),
+                          SnackBar(content: Text('common.copied'.tr())),
                         );
                       },
                       icon: const Icon(

@@ -38,7 +38,7 @@ class LocationService {
       );
 
       if (placemarks.isEmpty) {
-        return 'Không xác định được địa chỉ';
+        return '';
       }
 
       final Placemark p = placemarks.first;
@@ -73,9 +73,9 @@ class LocationService {
         return parts.join(', ');
       }
 
-      return 'Không xác định được địa chỉ';
+      return '';
     } catch (_) {
-      return 'Không xác định được địa chỉ';
+      return '';
     }
   }
 }

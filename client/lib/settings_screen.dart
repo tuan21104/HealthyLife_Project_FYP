@@ -53,7 +53,7 @@ class SettingsScreen extends StatelessWidget {
                       spacing: 10,
                       children: [
                         ChoiceChip(
-                          label: const Text('Tiếng Việt'),
+                          label: Text('settings.language_vi'.tr()),
                           selected: currentLocale.languageCode == 'vi',
                           onSelected: (selected) {
                             if (!selected) return;
@@ -61,7 +61,7 @@ class SettingsScreen extends StatelessWidget {
                           },
                         ),
                         ChoiceChip(
-                          label: const Text('English'),
+                          label: Text('settings.language_en'.tr()),
                           selected: currentLocale.languageCode == 'en',
                           onSelected: (selected) {
                             if (!selected) return;

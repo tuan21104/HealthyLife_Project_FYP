@@ -26,7 +26,8 @@
     "confirm": "Xác nhận",
     "undo": "Hoàn tác",
     "retry": "Thử lại",
-    "select": "Chọn"
+    "select": "Chọn",
+    "copied": "Đã sao chép!"
   },
   "auth": {
     "email": "Email",
@@ -49,7 +50,35 @@
     "google_login": "Đăng nhập bằng Google",
     "google_signin_cancelled": "Bạn đã hủy đăng nhập Google",
     "google_id_token_missing": "Không lấy được Google ID token. Vui lòng kiểm tra cấu hình Firebase/Google Sign-In.",
-    "password_requirements": "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt."
+    "password_requirements": "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.",
+    "forgot_password_title": "Quên mật khẩu",
+    "enter_email_for_otp": "Nhập email đăng ký để nhận mã OTP",
+    "email_example": "example@gmail.com",
+    "send_otp": "Gửi mã OTP",
+    "reset_password_title": "Đặt lại mật khẩu",
+    "set_new_password_for": "Đặt mật khẩu mới cho {email}",
+    "new_password": "Mật khẩu mới",
+    "confirm_new_password": "Nhập lại mật khẩu mới",
+    "confirm_new_password_action": "Xác nhận mật khẩu mới",
+    "invalid_email": "Vui lòng nhập email hợp lệ.",
+    "password_too_short": "Mật khẩu mới phải có ít nhất 6 ký tự.",
+    "password_mismatch": "Mật khẩu nhập lại không khớp.",
+    "password_reset_success": "Đổi mật khẩu thành công. Mời bạn đăng nhập lại.",
+    "otp_title": "Nhập mã xác thực",
+    "otp_instruction_prefix": "Chúng tôi đã gửi mã OTP đến ",
+    "otp_invalid": "Mã OTP không hợp lệ hoặc đã hết hạn.",
+    "otp_required": "Vui lòng nhập đầy đủ mã OTP 6 số.",
+    "otp_resend_ready": "Bạn đã có thể gửi lại mã.",
+    "otp_resend_button": "Gửi lại mã",
+    "otp_resend_success": "Đã gửi lại OTP tới email của bạn.",
+    "otp_resend_failed": "Gửi lại OTP thất bại.",
+    "otp_countdown_prefix": "Gửi lại mã sau ",
+    "otp_countdown_suffix": "s",
+    "otp_submit_signup": "Xác minh tài khoản",
+    "otp_submit_forgot_password": "Xác minh OTP",
+    "otp_verify_success_signup": "Xác thực email thành công.",
+    "otp_verify_success_forgot": "OTP hợp lệ. Mời bạn đặt lại mật khẩu.",
+    "otp_loading": "Đang xử lý..."
   },
   "onboarding": {
     "welcome": "Chào mừng đến Healthy Life",
@@ -125,6 +154,9 @@
   "settings": {
     "coming_soon": "Cài đặt (Sắp ra mắt)",
     "language": "Ngôn ngữ",
+    "language_tooltip": "Ngôn ngữ",
+    "language_vi": "Tiếng Việt",
+    "language_en": "English",
     "switch_to_vi": "Chuyển sang Tiếng Việt",
     "switch_to_en": "Chuyển sang English"
   },
@@ -164,7 +196,13 @@
     "delete_item_title": "Xóa bản ghi",
     "delete_item_confirm": "Bạn có chắc chắn muốn xóa {name} khỏi mục {meal}?",
     "delete_success": "Đã xóa bản ghi.",
-    "delete_failed": "Xóa bản ghi thất bại."
+    "delete_failed": "Xóa bản ghi thất bại.",
+    "calorie_target": "Mục tiêu Calo",
+    "edit_target_title": "Chỉnh sửa {title}",
+    "kcal_unit": "Kcal",
+    "gram_unit": "g",
+    "exercise_only_message": "Mục này chỉ dành cho Bài Tập!",
+    "cannot_add_exercise_message": "Không thể thêm Bài Tập vào bữa ăn!"
   },
   "expense": {
     "title": "Quản lý chi tiêu",
@@ -205,7 +243,10 @@
     "update_success": "Cập nhật chi tiêu thành công!",
     "update_failed": "Cập nhật chi tiêu thất bại.",
     "empty_title": "Chưa có khoản chi tiêu nào",
-    "empty_subtitle": "Bấm nút thêm chi tiêu để tạo dữ liệu đầu tiên."
+    "empty_subtitle": "Bấm nút thêm chi tiêu để tạo dữ liệu đầu tiên.",
+    "update_budget_title": "Cập nhật ngân sách tháng",
+    "update_budget_hint": "Nhập ngân sách mới",
+    "budget_invalid": "Ngân sách không hợp lệ!"
   },
   "ai_chat": {
     "title": "Hỏi AI",
@@ -317,10 +358,10 @@
     "phone_required_message": "Vui lòng nhập số điện thoại để nhận hàng.",
     "valid_phone_required": "Vui lòng nhập số điện thoại hợp lệ",
     "item_added_to_cart": "{product} đã được thêm vào giỏ hàng",
-    "voucher_20_title": "Voucher giảm 20% khả dụng",
-    "voucher_20_subtitle": "Chỉ dùng 1 lần cho đơn này",
-    "voucher_discount": "Giảm từ voucher",
-    "voucher_progress": "Chi tiêu {current} / {target} để mở voucher 20%"
+    "voucher_20_title": "Chương trình khuyến mãi 20% có sẵn",
+    "voucher_20_subtitle": "Chỉ dùng một lần cho đơn hàng này",
+    "voucher_discount": "Giảm giá từ voucher",
+    "voucher_progress": "Chi tiêu {current} / {target} để kiếm voucher 20%"
   },
   "home": {
     "title": "Trang chủ",

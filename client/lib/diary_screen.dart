@@ -38,6 +38,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   double _targetCarb = 150;
   double _targetProtein = 60;
   double _targetFat = 40;
+  Map<String, dynamic>? _profileUser;
   double _waterIntake = 0;
   double _waterAnimatedFrom = 0;
   double _waterTargetMl = 2000;
@@ -94,11 +95,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
       if (profileTarget > 0 && mounted) {
         setState(() {
+          _profileUser = user is Map ? Map<String, dynamic>.from(user) : null;
           _defaultTargetCalo = profileTarget;
           _targetCalo = profileTarget;
-          _targetCarb = (_targetCalo * 0.5) / 4;
-          _targetProtein = (_targetCalo * 0.2) / 4;
-          _targetFat = (_targetCalo * 0.3) / 9;
+          _applyGoalBasedMacroTargets(_targetCalo, _profileUser);
           final weight = (user?['weight'] as num?)?.toDouble();
           if (weight != null && weight > 0) {
             _waterTargetMl = weight * 35;
@@ -118,6 +118,76 @@ class _DiaryScreenState extends State<DiaryScreen> {
     if (target < 500 || target > 6000) return 0;
 
     return target;
+  }
+
+  double _normalizeWeight(dynamic value) {
+    if (value is! num) return 0;
+    final weight = value.toDouble();
+    if (!weight.isFinite || weight <= 0) return 0;
+    if (weight < 25 || weight > 300) return 0;
+    return weight;
+  }
+
+  ({double carb, double protein, double fat}) _macroRatiosForGoal(
+    dynamic user,
+  ) {
+    final goal =
+        (user is Map ? user['goal'] : null)?.toString().toLowerCase() ?? '';
+
+    final weight = user is Map ? _normalizeWeight(user['weight']) : 0;
+
+    if (weight >= 90) {
+      if (goal.contains('losing')) {
+        return (carb: 0.37, protein: 0.38, fat: 0.25);
+      }
+      if (goal.contains('gaining')) {
+        return (carb: 0.48, protein: 0.27, fat: 0.25);
+      }
+      if (goal.contains('keeping') || goal.contains('fit')) {
+        return (carb: 0.43, protein: 0.27, fat: 0.30);
+      }
+    }
+
+    if (goal.contains('losing')) {
+      return (carb: 0.40, protein: 0.35, fat: 0.25);
+    }
+    if (goal.contains('gaining')) {
+      return (carb: 0.50, protein: 0.25, fat: 0.25);
+    }
+    if (goal.contains('keeping') || goal.contains('fit')) {
+      return (carb: 0.45, protein: 0.25, fat: 0.30);
+    }
+
+    return (carb: 0.45, protein: 0.25, fat: 0.30);
+  }
+
+  bool _looksLikeLegacyMacroSplit(
+    double carb,
+    double protein,
+    double fat,
+    double targetCalo,
+  ) {
+    if (targetCalo <= 0) return false;
+
+    final carbRatio = (carb * 4) / targetCalo;
+    final proteinRatio = (protein * 4) / targetCalo;
+    final fatRatio = (fat * 9) / targetCalo;
+
+    return (carbRatio - 0.50).abs() <= 0.06 &&
+        (proteinRatio - 0.20).abs() <= 0.05 &&
+        (fatRatio - 0.30).abs() <= 0.06;
+  }
+
+  void _applyGoalBasedMacroTargets(
+    double calories,
+    Map<String, dynamic>? user,
+  ) {
+    final ratios = _macroRatiosForGoal(user);
+    final normalizedCalories = calories > 0 ? calories : _defaultTargetCalo;
+
+    _targetCarb = (normalizedCalories * ratios.carb) / 4;
+    _targetProtein = (normalizedCalories * ratios.protein) / 4;
+    _targetFat = (normalizedCalories * ratios.fat) / 9;
   }
 
   double _resolveProfileDailyTarget(dynamic user) {
@@ -157,6 +227,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
     setState(() {
       final savedTargetCalo = _normalizeDailyTarget(data['targetCalo']);
+      final savedTargetCarb = (data['targetCarb'] as num?)?.toDouble() ?? 0;
+      final savedTargetProtein =
+          (data['targetProtein'] as num?)?.toDouble() ?? 0;
+      final savedTargetFat = (data['targetFat'] as num?)?.toDouble() ?? 0;
 
       // Migrate dữ liệu cũ: trước đây target mặc định luôn bị lưu là 1200.
       final isLegacyDefault =
@@ -174,13 +248,25 @@ class _DiaryScreenState extends State<DiaryScreen> {
           : ((savedTargetCalo > 0 && !isLegacyDefault)
                 ? savedTargetCalo
                 : widget.initialCalo);
-      _targetCarb =
-          (data['targetCarb'] as num?)?.toDouble() ?? (_targetCalo * 0.5) / 4;
-      _targetProtein =
-          (data['targetProtein'] as num?)?.toDouble() ??
-          (_targetCalo * 0.2) / 4;
-      _targetFat =
-          (data['targetFat'] as num?)?.toDouble() ?? (_targetCalo * 0.3) / 9;
+
+      final shouldRecalculateMacros =
+          savedTargetCarb <= 0 ||
+          savedTargetProtein <= 0 ||
+          savedTargetFat <= 0 ||
+          _looksLikeLegacyMacroSplit(
+            savedTargetCarb,
+            savedTargetProtein,
+            savedTargetFat,
+            _targetCalo,
+          );
+
+      if (shouldRecalculateMacros) {
+        _applyGoalBasedMacroTargets(_targetCalo, _profileUser);
+      } else {
+        _targetCarb = savedTargetCarb;
+        _targetProtein = savedTargetProtein;
+        _targetFat = savedTargetFat;
+      }
       _waterAnimatedFrom = _waterIntake;
       _waterIntake = (data['waterIntake'] as num?)?.toDouble() ?? 0;
 
@@ -221,9 +307,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
     setState(() {
       _targetCalo = _defaultTargetCalo;
-      _targetCarb = (_targetCalo * 0.5) / 4;
-      _targetProtein = (_targetCalo * 0.2) / 4;
-      _targetFat = (_targetCalo * 0.3) / 9;
+      _applyGoalBasedMacroTargets(_targetCalo, _profileUser);
       _waterIntake = 0;
 
       _breakfastFoods = [];
@@ -786,14 +870,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
-            "Chỉnh sửa $title",
+            'diary.edit_target_title'.tr(namedArgs: {'title': title}),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              suffixText: title.contains("Calo") ? "Kcal" : "g",
+              suffixText: title.contains('Calo')
+                  ? 'diary.kcal_unit'.tr()
+                  : 'diary.gram_unit'.tr(),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -802,7 +888,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'common.cancel'.tr(),
+                style: const TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -1006,7 +1095,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
           ),
           GestureDetector(
             onTap: () => _showEditTargetDialog(
-              "Mục tiêu Calo",
+              'diary.calorie_target'.tr(),
               _targetCalo,
               (newValue) => setState(() => _targetCalo = newValue),
             ),

@@ -1,18 +1,18 @@
 class AppStrings {
-  static const String otpTitle = 'Nhap ma xac thuc';
-  static const String otpInstructionPrefix = 'Chung toi da gui ma OTP den ';
-  static const String otpInvalid = 'Ma OTP khong hop le hoac da het han.';
-  static const String otpRequired = 'Vui long nhap day du ma OTP 6 so.';
-  static const String otpResendReady = 'Ban da co the gui lai ma.';
-  static const String otpResendButton = 'Gui lai ma';
-  static const String otpResendSuccess = 'Da gui lai OTP toi email cua ban.';
-  static const String otpResendFailed = 'Gui lai OTP that bai.';
-  static const String otpCountdownPrefix = 'Gui lai ma sau ';
-  static const String otpCountdownSuffix = 's';
-  static const String otpSubmitSignup = 'Xac minh tai khoan';
-  static const String otpSubmitForgotPassword = 'Xac minh OTP';
-  static const String otpVerifySuccessSignup = 'Xac thuc email thanh cong.';
-  static const String otpVerifySuccessForgot =
-      'OTP hop le. Moi ban dat lai mat khau.';
-  static const String otpLoading = 'Dang xu ly...';
+  static const String otpTitle = 'auth.otp_title';
+  static const String otpInstructionPrefix = 'auth.otp_instruction_prefix';
+  static const String otpInvalid = 'auth.otp_invalid';
+  static const String otpRequired = 'auth.otp_required';
+  static const String otpResendReady = 'auth.otp_resend_ready';
+  static const String otpResendButton = 'auth.otp_resend_button';
+  static const String otpResendSuccess = 'auth.otp_resend_success';
+  static const String otpResendFailed = 'auth.otp_resend_failed';
+  static const String otpCountdownPrefix = 'auth.otp_countdown_prefix';
+  static const String otpCountdownSuffix = 'auth.otp_countdown_suffix';
+  static const String otpSubmitSignup = 'auth.otp_submit_signup';
+  static const String otpSubmitForgotPassword =
+      'auth.otp_submit_forgot_password';
+  static const String otpVerifySuccessSignup = 'auth.otp_verify_success_signup';
+  static const String otpVerifySuccessForgot = 'auth.otp_verify_success_forgot';
+  static const String otpLoading = 'auth.otp_loading';
 }

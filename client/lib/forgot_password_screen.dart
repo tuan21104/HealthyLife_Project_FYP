@@ -1,5 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import 'core/utils/i18n_fallback.dart';
 import 'otp_verification_screen.dart';
 import 'services/auth_service.dart';
 
@@ -39,7 +41,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _handleSendOtp() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !_isValidEmail(email)) {
-      _showMessage('Vui long nhap email hop le.');
+      _showMessage(
+        trSafe(
+          context,
+          'auth.invalid_email',
+          vi: 'Vui lòng nhập email hợp lệ.',
+          en: 'Please enter a valid email.',
+        ),
+      );
       return;
     }
 
@@ -75,7 +84,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Quen mat khau')),
+      appBar: AppBar(title: Text('auth.forgot_password_title'.tr())),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -84,7 +93,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             children: [
               const SizedBox(height: 12),
               Text(
-                'Nhap email dang ky de nhan ma OTP',
+                'auth.enter_email_for_otp'.tr(),
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -96,8 +105,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
                 decoration: InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'example@gmail.com',
+                  labelText: 'auth.email'.tr(),
+                  hintText: 'auth.email_example'.tr(),
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -128,9 +137,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             key: ValueKey('label'),
-                            'Gui ma OTP',
+                            'auth.send_otp'.tr(),
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,

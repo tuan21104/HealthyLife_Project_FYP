@@ -26,7 +26,8 @@
     "confirm": "Confirm",
     "undo": "Undo",
     "retry": "Retry",
-    "select": "Select"
+    "select": "Select",
+    "copied": "Copied!"
   },
   "auth": {
     "email": "Email",
@@ -49,7 +50,35 @@
     "google_login": "Continue with Google",
     "google_signin_cancelled": "Google sign-in was cancelled",
     "google_id_token_missing": "Unable to get Google ID token. Please check Firebase/Google Sign-In config.",
-    "password_requirements": "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+    "password_requirements": "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+    "forgot_password_title": "Forgot Password",
+    "enter_email_for_otp": "Enter your registered email to receive an OTP",
+    "email_example": "example@gmail.com",
+    "send_otp": "Send OTP",
+    "reset_password_title": "Reset Password",
+    "set_new_password_for": "Set a new password for {email}",
+    "new_password": "New Password",
+    "confirm_new_password": "Confirm New Password",
+    "confirm_new_password_action": "Confirm New Password",
+    "invalid_email": "Please enter a valid email.",
+    "password_too_short": "New password must be at least 6 characters.",
+    "password_mismatch": "Passwords do not match.",
+    "password_reset_success": "Password changed successfully. Please log in again.",
+    "otp_title": "Enter verification code",
+    "otp_instruction_prefix": "We sent an OTP to ",
+    "otp_invalid": "OTP is invalid or expired.",
+    "otp_required": "Please enter the full 6-digit OTP.",
+    "otp_resend_ready": "You can resend the code now.",
+    "otp_resend_button": "Resend code",
+    "otp_resend_success": "OTP resent to your email.",
+    "otp_resend_failed": "Failed to resend OTP.",
+    "otp_countdown_prefix": "Resend code in ",
+    "otp_countdown_suffix": "s",
+    "otp_submit_signup": "Verify account",
+    "otp_submit_forgot_password": "Verify OTP",
+    "otp_verify_success_signup": "Email verified successfully.",
+    "otp_verify_success_forgot": "Valid OTP. Please reset your password.",
+    "otp_loading": "Processing..."
   },
   "onboarding": {
     "welcome": "Welcome to Healthy Life",
@@ -125,6 +154,9 @@
   "settings": {
     "coming_soon": "Settings (Coming Soon)",
     "language": "Language",
+    "language_tooltip": "Language",
+    "language_vi": "Vietnamese",
+    "language_en": "English",
     "switch_to_vi": "Switch to Vietnamese",
     "switch_to_en": "Switch to English"
   },
@@ -164,7 +196,13 @@
     "delete_item_title": "Delete record",
     "delete_item_confirm": "Are you sure you want to delete {name} from {meal}?",
     "delete_success": "Record deleted.",
-    "delete_failed": "Failed to delete record."
+    "delete_failed": "Failed to delete record.",
+    "calorie_target": "Calorie Target",
+    "edit_target_title": "Edit {title}",
+    "kcal_unit": "Kcal",
+    "gram_unit": "g",
+    "exercise_only_message": "This section is for Exercise only!",
+    "cannot_add_exercise_message": "Exercise cannot be added to a meal!"
   },
   "expense": {
     "title": "Expense Management",
@@ -205,7 +243,10 @@
     "update_success": "Expense updated successfully!",
     "update_failed": "Failed to update expense.",
     "empty_title": "No expenses yet",
-    "empty_subtitle": "Tap the add expense button to create your first record."
+    "empty_subtitle": "Tap the add expense button to create your first record.",
+    "update_budget_title": "Update monthly budget",
+    "update_budget_hint": "Enter new budget",
+    "budget_invalid": "Invalid budget!"
   },
   "ai_chat": {
     "title": "Ask me",
@@ -317,10 +358,10 @@
     "phone_required_message": "Please enter your phone number for delivery.",
     "valid_phone_required": "Please enter a valid phone number",
     "item_added_to_cart": "{product} added to cart",
-    "voucher_20_title": "20% Voucher Available",
+    "voucher_20_title": "20% Discount Promotion Available",
     "voucher_20_subtitle": "Use once for this order",
-    "voucher_discount": "Voucher Discount",
-    "voucher_progress": "Spend {current} / {target} to unlock a 20% voucher"
+    "voucher_discount": "Discount from Voucher",
+    "voucher_progress": "Spend {current} / {target} to earn a 20% voucher"
   },
   "home": {
     "title": "Home",

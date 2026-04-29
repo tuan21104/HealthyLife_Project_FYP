@@ -45,14 +45,14 @@ class LandingScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    itemBuilder: (context) => const [
+                    itemBuilder: (context) => [
                       PopupMenuItem<String>(
                         value: 'vi',
-                        child: Text('Tiếng Việt'),
+                        child: Text('settings.language_vi'.tr()),
                       ),
                       PopupMenuItem<String>(
                         value: 'en',
-                        child: Text('English'),
+                        child: Text('settings.language_en'.tr()),
                       ),
                     ],
                     child: Padding(

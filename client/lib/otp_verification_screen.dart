@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 
 import 'core/constants/app_strings.dart';
+import 'core/utils/i18n_fallback.dart';
 import 'login_screen.dart';
 import 'reset_password_screen.dart';
 import 'services/auth_service.dart';
@@ -93,7 +95,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       } else {
         await AuthService.forgotPassword(widget.email);
       }
-      _showMessage(AppStrings.otpResendSuccess, color: Colors.green);
+      _showMessage(AppStrings.otpResendSuccess.tr(), color: Colors.green);
       _startCountdown();
     } catch (e) {
       _showMessage(e.toString().replaceFirst('Exception: ', ''));
@@ -108,7 +110,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     if (otp.length != 6) {
       setState(() => _hasOtpError = true);
       HapticFeedback.heavyImpact();
-      _showMessage(AppStrings.otpRequired);
+      _showMessage(AppStrings.otpRequired.tr());
       return;
     }
 
@@ -124,7 +126,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
         await AuthService.markPendingOnboarding(widget.email);
 
-        _showMessage(AppStrings.otpVerifySuccessSignup, color: Colors.green);
+        _showMessage(
+          AppStrings.otpVerifySuccessSignup.tr(),
+          color: Colors.green,
+        );
         await Future.delayed(const Duration(milliseconds: 220));
         if (!mounted) return;
 
@@ -157,7 +162,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       await AuthService.verifyForgotPasswordOtp(widget.email, otp);
       if (!mounted) return;
 
-      _showMessage(AppStrings.otpVerifySuccessForgot, color: Colors.green);
+      _showMessage(AppStrings.otpVerifySuccessForgot.tr(), color: Colors.green);
       Navigator.push(
         context,
         PageRouteBuilder(
@@ -203,7 +208,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.otpTitle)),
+      appBar: AppBar(title: Text(AppStrings.otpTitle.tr())),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -211,7 +216,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${AppStrings.otpInstructionPrefix}${widget.email}',
+                trSafe(
+                      context,
+                      AppStrings.otpInstructionPrefix,
+                      vi: 'Chúng tôi đã gửi mã OTP đến ',
+                      en: 'We sent an OTP to ',
+                    ) +
+                    widget.email,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -243,8 +254,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   children: [
                     Text(
                       _secondsLeft > 0
-                          ? '${AppStrings.otpCountdownPrefix}$_secondsLeft${AppStrings.otpCountdownSuffix}'
-                          : AppStrings.otpResendReady,
+                          ? '${trSafe(context, AppStrings.otpCountdownPrefix, vi: 'Gửi lại mã sau ', en: 'Resend code in ')}$_secondsLeft${trSafe(context, AppStrings.otpCountdownSuffix, vi: 's', en: 's')}'
+                          : AppStrings.otpResendReady.tr(),
                       style: TextStyle(
                         color: _secondsLeft > 0
                             ? Colors.grey.shade700
@@ -263,7 +274,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text(AppStrings.otpResendButton),
+                          : Text(AppStrings.otpResendButton.tr()),
                     ),
                   ],
                 ),
@@ -295,8 +306,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         : Text(
                             key: const ValueKey('label-submit'),
                             widget.flow == OtpFlow.signup
-                                ? AppStrings.otpSubmitSignup
-                                : AppStrings.otpSubmitForgotPassword,
+                                ? AppStrings.otpSubmitSignup.tr()
+                                : AppStrings.otpSubmitForgotPassword.tr(),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,

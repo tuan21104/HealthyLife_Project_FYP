@@ -195,7 +195,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     if (_currentUserId.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Vui lòng đăng nhập lại!')));
+      ).showSnackBar(SnackBar(content: Text('auth.relogin_required'.tr())));
       return;
     }
 
@@ -232,19 +232,19 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Cập nhật ngân sách tháng'),
+          title: Text('expense.update_budget_title'.tr()),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              hintText: 'Nhập ngân sách mới',
-              suffixText: 'VNĐ',
+            decoration: InputDecoration(
+              hintText: 'expense.update_budget_hint'.tr(),
+              suffixText: 'VND',
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Hủy'),
+              child: Text('common.cancel'.tr()),
             ),
             ElevatedButton(
               onPressed: () {
@@ -254,14 +254,14 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
                 if (parsed == null || parsed < 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ngân sách không hợp lệ!')),
+                    SnackBar(content: Text('expense.budget_invalid'.tr())),
                   );
                   return;
                 }
 
                 Navigator.pop(dialogContext, parsed);
               },
-              child: const Text('Lưu'),
+              child: Text('common.save'.tr()),
             ),
           ],
         );

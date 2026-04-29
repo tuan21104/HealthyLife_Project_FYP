@@ -227,7 +227,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
     if (!mounted) return;
 
-    if (address.trim().isEmpty || address == 'Không xác định được địa chỉ') {
+    if (address.trim().isEmpty) {
       setState(() => _isCalculatingShipping = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('shop.location_address_unavailable'.tr())),
@@ -1227,8 +1227,8 @@ class _ShopScreenState extends State<ShopScreen> {
                 _buildCheckoutCard(
                   icon: Icons.credit_card_outlined,
                   label: 'shop.payment_from'.tr(),
-                  child: const Text(
-                    'VCB 9947890196',
+                  child: Text(
+                    'shop.bank_account'.tr(),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
